@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+config_url="https://www.mudbungie.net/userconf"
+
 # Test to see what package managers are available.
 declare -a installers=("apt" "dnf")
 for installer in "${installers[@]}"; do
@@ -27,6 +29,6 @@ for conf in "${confs[@]}"; do
 		mv $HOME/$conf $HOME/$conf.bak
 	fi
 	echo "Installing $HOME/$conf"
-	wget -qO "$HOME/$conf" "https://www.mudbungie.net/$conf"
+	wget -qO "$HOME/$conf" "$config_url/$conf"
 done
 	

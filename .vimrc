@@ -3,9 +3,10 @@ set ruler
 set backspace=2
 set number
 syntax on
-set tabstop=2
-set shiftwidth=2
+set tabstop=4
+set shiftwidth=4
 set smarttab
+set expandtab
 set autoindent
 set cursorline " horisontal rule on active line
 set wildmenu " shows possibilities for tab-completion
