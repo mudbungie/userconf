@@ -17,7 +17,7 @@ echo "Installing the following programs: $programs."
 echo sudo $pkgmgr install -y $programs
 if sudo $pkgmgr install -y $programs; then
 	echo "Installation successful."
-else:
+else
 	echo "Installation failed."
 fi
 
