@@ -1,6 +1,16 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 config_url="https://www.mudbungie.net/userconf"
+
+# Move the file to .bak, recursively, so that you never squash.
+function backup_file {
+    if [ -e "$1" ]; then 
+        backup_file "$1.bak"
+        echo "Backing up $1 to $1.bak"
+        mv  "$1" "$1.bak"
+    fi
+}
+    
 
 # Test to see what package managers are available.
 declare -a installers=("apt" "dnf")
@@ -24,10 +34,7 @@ fi
 # Back up current confs and download mine.
 declare -a confs=(".bashrc" ".vimrc" ".sqliterc")
 for conf in "${confs[@]}"; do
-	if [ -e "$HOME/$conf" ]; then
-		echo "Backing up $HOME/$conf to $HOME/$conf.bak"
-		mv $HOME/$conf $HOME/$conf.bak
-	fi
+    backup_file "$HOME/$conf"
 	echo "Installing $HOME/$conf"
 	wget -qO "$HOME/$conf" "$config_url/$conf"
 done
