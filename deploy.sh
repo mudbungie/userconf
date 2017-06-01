@@ -22,7 +22,7 @@ for installer in "${installers[@]}"; do
 done
 
 # Programs that I want installed.
-programs="vim wget curl python3"
+programs="vim wget curl python3 git"
 echo "Installing the following programs: $programs."
 echo sudo $pkgmgr install -y $programs
 if sudo $pkgmgr install -y $programs; then
