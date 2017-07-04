@@ -13,7 +13,7 @@ function backup_file {
     
 
 # Test to see what package managers are available.
-declare -a installers=("apt" "dnf")
+declare -a installers=("apt" "dnf" "yum")
 for installer in "${installers[@]}"; do
 	if which $installer; then
 		pkgmgr=$installer
