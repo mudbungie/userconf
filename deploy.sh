@@ -32,7 +32,7 @@ else
 fi
 
 # Back up current confs and download mine.
-declare -a confs=(".bashrc" ".vimrc" ".sqliterc" ".pythonrc" ".profile")
+declare -a confs=(".bashrc" ".vimrc" ".sqliterc" ".pythonrc" ".profile" ".bash_functions")
 for conf in "${confs[@]}"; do
     backup_file "$HOME/$conf"
 	echo "Installing $HOME/$conf"

@@ -125,6 +125,9 @@ export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
 PATH=$PATH:$HOME/bin
 PATH=$PATH:$HOME/.local/bin
 
+# Include custom bash functions
+source "$HOME/.bash_functions.sh"
+
 # Use Vim
 EDITOR=vim
 
