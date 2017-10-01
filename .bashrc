@@ -133,3 +133,4 @@ export PYTHONSTARTUP="$HOME/.pythonrc"
 
 # Aliases
 alias ip?='curl doihaveinter.net/IP'
+alias ll='ls -al'
