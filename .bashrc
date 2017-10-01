@@ -127,3 +127,9 @@ PATH=$PATH:$HOME/.local/bin
 
 # Use Vim
 EDITOR=vim
+
+# Include pythonrc
+export PYTHONSTARTUP="$HOME/.pythonrc"
+
+# Aliases
+alias ip?='curl doihaveinter.net/IP'

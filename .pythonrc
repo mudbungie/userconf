@@ -1,0 +1,5 @@
+# Check for python version
+import sys
+if sys.version_info[0] >= 3:
+    import rlcompleter, readline
+    readline.parse_and_bind('tab:complete')
