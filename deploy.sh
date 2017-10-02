@@ -13,7 +13,7 @@ function backup_file {
     
 
 # Test to see what package managers are available.
-declare -a installers=("apt" "dnf" "yum")
+declare -a installers=("dnf" "yum" "apt")
 for installer in "${installers[@]}"; do
 	if which $installer; then
 		pkgmgr=$installer
@@ -24,8 +24,15 @@ done
 # Programs that I want installed.
 programs="vim wget curl python3 git"
 echo "Installing the following programs: $programs."
-echo sudo $pkgmgr install -y $programs
-if sudo $pkgmgr install -y $programs; then
+# If root, don't use sudo.
+if [ $(id -u) != 0 ]; then
+    sudo=sudo
+else
+    sudo=""
+fi
+echo $sudo
+echo $sudo $pkgmgr install -y $programs
+if $sudo $pkgmgr install -y $programs; then
 	echo "Installation successful."
 else
 	echo "Installation failed."
