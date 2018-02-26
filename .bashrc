@@ -8,9 +8,11 @@ case $- in
       *) return;;
 esac
 
-# Include custom bash functions
+# Include custom bash functions.
 source "$HOME/.bash_functions.sh"
 
+# Enable the color shortcuts.
+bash_colors
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
