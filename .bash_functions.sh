@@ -61,8 +61,8 @@ function gen_PS1 {
 }
 
 function bash_colors {
-    export RESTORE=$(echo -en '\[\033[0m\]')
-    export RED=$(echo -en '\[\033[00;31m\]')
+    export RESTORE=$(echo -en '\033[0m')
+    export RED=$(echo -en '\033[00;31m')
     export GREEN=$(echo -en '\033[00;32m')
     export YELLOW=$(echo -en '\033[00;33m')
     export BLUE=$(echo -en '\033[00;34m')
