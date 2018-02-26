@@ -124,6 +124,7 @@ PATH=$PATH:$HOME/.local/bin
 
 # Use vim.
 EDITOR=vim
+VISUAL=$EDITOR
 
 # Include pythonrc
 export PYTHONSTARTUP="$HOME/.pythonrc"
