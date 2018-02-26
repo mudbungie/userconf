@@ -134,3 +134,11 @@ export PYTHONSTARTUP="$HOME/.pythonrc"
 # Aliases
 alias ip?='curl doihaveinter.net/IP'
 alias ll='ls -al'
+
+# Include local configuration.
+if [ -f "$HOME/.bash_localrc" ]; then
+    source "$HOME/.bash_localrc"
+else
+    echo "# Local bash configuration for this machine." >> "$HOME/.bash_localrc"
+
+fi
