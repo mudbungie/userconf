@@ -6,6 +6,15 @@ function retry {
         "$@"
     done
 }
+
+# Non-clobbering path addition.
+function add_to_path {
+    pathlines=$(echo PATH|sed 's/:/\n/g') # Split path by lines.
+    if ! echo $PATH |grep -q $1 ; then
+        export PATH="$PATH:$1"
+    fi
+}
+
 # Generates a PS1 value.
 function gen_PS1 {
     # Arguments.

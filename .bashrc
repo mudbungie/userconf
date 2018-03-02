@@ -11,7 +11,7 @@ esac
 # Include custom bash functions.
 source "$HOME/.bash_functions.sh"
 
-# Enable the color shortcuts.
+# Enable the color shortcuts. Preceding bash_functions may break without this.
 bash_colors
 
 # check the window size after each command and, if necessary,
@@ -20,7 +20,7 @@ shopt -s checkwinsize
 
 # If set, the pattern "**" used in a pathname expansion context will
 # match all files and zero or more directories and subdirectories.
-#shopt -s globstar
+shopt -s globstar
 
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
@@ -59,30 +59,30 @@ fi
 #unset color_prompt force_color_prompt
 
 ## If this is an xterm set the title to user@host:dir
-#case "$TERM" in
-#xterm*|rxvt*)
-#    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
-#    ;;
-#*)
-#    ;;
-#esac
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*)
+    ;;
+esac
 
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
     alias ls='ls --color=auto'
-    #alias dir='dir --color=auto'
-    #alias vdir='vdir --color=auto'
+    alias dir='dir --color=auto'
+    alias vdir='vdir --color=auto'
 
-    #alias grep='grep --color=auto'
-    #alias fgrep='fgrep --color=auto'
-    #alias egrep='egrep --color=auto'
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
 fi
 
 # colored GCC warnings and errors
-#export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
-# some more ls aliases
+# ls shortcuts
 alias ll='ls -l'
 alias la='ls -A'
 alias l='ls -CF'
@@ -121,8 +121,8 @@ export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
 PS1=$(gen_PS1)
 
 # Add my local bins to the path.
-PATH=$PATH:$HOME/bin
-PATH=$PATH:$HOME/.local/bin
+add_to_path "$HOME/bin"
+add_to_path "$HOME/.local/bin"
 
 # Use vim.
 EDITOR=vim
@@ -134,6 +134,27 @@ export PYTHONSTARTUP="$HOME/.pythonrc"
 # Aliases
 alias ip?='curl doihaveinter.net/IP'
 alias ll='ls -al'
+alias kinit='kinit -f'
+
+# Domain-specific configuration.
+if hostname -f |grep -q 'amazon.com' ; then
+    add_to_path '/apollo/env/SDETools/bin'
+    add_to_path '/apollo/env/envImprovement/bin'
+    add_to_path '/apollo/bin'
+    add_to_path '/apollo/sbin'
+    add_to_path '/apollo/env/ApolloCommandLine/bin'
+    add_to_path '/apollo/env/AmazonAwsCli/bin'
+    add_to_path '/apollo/env/OdinTools/bin'
+    add_to_path '/usr/kerberos/bin'
+    add_to_path '/apollo/env/OctaneBrazilTools/bin'
+    add_to_path '/apollo/env/BrazilCLI/public-bin/brazil'
+
+    alias cmwb='/apollo/env/ChangeManagementWorkBench/bin/ChangeManagementWorkbench'
+    alias bo='brazil-octane'
+    alias mwinit='mwinit -o'
+
+    alias cmex='OVERRIDE_ENVROOT=/apollo/env/ChangeManagementWorkbench /home/oribi/workspaces/ChangeManagementWorkbenchExtensions/src/ChangeManagementWorkbenchExtensions/my_extensions/bin/ChangeManagementWorkbenchMod'
+fi 
 
 # Include local configuration.
 if [ -f "$HOME/.bash_localrc" ]; then
@@ -142,3 +163,4 @@ else
     echo "# Local bash configuration for this machine." >> "$HOME/.bash_localrc"
 
 fi
+# DO NOT ADD AFTER THIS LINE. LOCAL CONFIG SHOULD BE LAST.
