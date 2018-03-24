@@ -115,7 +115,7 @@ shopt -s histappend # Always append, don't start new history.
 HISTCONTROL=ignoreboth # Ignore duplicates and lines beginning with ' '.
 
 # Save and reload history at each prompt.
-export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
+export PROMPT_COMMAND="history -a; history -c; history -r;"
 
 # Use the shell prompt defined in ~/.bash_functions.sh
 PS1=$(gen_PS1)

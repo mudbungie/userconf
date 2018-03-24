@@ -60,7 +60,11 @@ function gen_PS1 {
     out=$out']'
 
     # $/# prompt terminus.
-    out=$out"\$"
+    if [ $(id -u) -eq 0 ] ; then
+        out=$out'#'
+    else
+        out=$out'$'
+    fi
 
     # Extra space at the end.
     out=$out" "
