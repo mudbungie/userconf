@@ -38,7 +38,7 @@ set_wm_shortcut "<Super>e" "workspace_2_key"
 set_wm_shortcut "<Super>s" "workspace_3_key"
 set_wm_shortcut "<Super>d" "workspace_4_key"
 
-set_command_shortcut "<Primary><Alt>l" "xscreensaver-command -lock"
+set_command_shortcut "<Primary><Alt>l" "xflock4"
 set_command_shortcut "<Super>t" "xfce4-terminal"
 set_command_shortcut "<Super>h" "qvm-run -a personal-ssh gnome-terminal"
 set_command_shortcut "<Super>m" "qvm-run -a vpn-gateway gnome-terminal"
