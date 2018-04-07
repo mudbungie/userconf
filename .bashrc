@@ -105,6 +105,13 @@ if ! shopt -oq posix; then
   elif [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
   fi
+  if [ -d /etc/bash_completion.d ]; then
+    for i in /etc/bash_completion.d/*.sh; do
+      if [ -r $i ];
+        . $i
+      fi
+    done
+    unset i
 fi
 
 ### modify default history functions.
