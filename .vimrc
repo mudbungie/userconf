@@ -18,3 +18,8 @@ set foldlevelstart=10 " don't go folding shallow nests by default
 set foldnestmax=10 " a precaution against runaway folds
 nnoremap <space> za
 hi MatchParen cterm=bold ctermfg=black
+
+au FileType python setl sw=4 sts=4 et
+au FileType ruby setl sw=2 sts=2 noet
+au FileType javascript setl sw=2 sts=2 noet
+au FileType json setl sw=2 sts=2 noet
