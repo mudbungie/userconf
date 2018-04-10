@@ -11,6 +11,14 @@ function backup_file {
     fi
 }
 
+function unbackup_file {
+    if [ -e $1.bak ] ; then
+        echo "Restoring $1.back to $1"
+        mv $1.bak $1/
+        unbackup_file "$1.bak"
+    fi
+}
+
 function install_packages {
     # Test to see what package managers are available.
     declare -a installers=("yum" "dnf" "apt" "brew")
@@ -61,15 +69,8 @@ function install_confs {
         cp "$conf" "$HOME/$conf"
     done
     cd ../
-    rm -rf ./userconf
+    rm -rf userconf
+    unbackup_file userconf
     echo "Done installing configuration files."
 }
-
-## Back up current confs and download mine.
-#declare -a confs=(".bashrc" ".vimrc" ".sqliterc" ".pythonrc" ".profile" ".bash_functions.sh")
-#for conf in "${confs[@]}"; do
-#    backup_file "$HOME/$conf"
-#	echo "Installing $HOME/$conf"
-#	wget -qO "$HOME/$conf" "$config_url/$conf"
-#done
 
