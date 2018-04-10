@@ -133,6 +133,7 @@ function set_xfce4_shortcuts {
     set_wm_shortcut "<Super>d" "workspace_4_key"
 
     set_command_shortcut "<Primary><Alt>l" "xflock4"
+    set_command_shortcut "<Super>l" "xflock4"
     set_command_shortcut "<Super>t" "xfce4-terminal"
     set_command_shortcut "<Super>h" "qvm-run -a personal-ssh gnome-terminal"
     set_command_shortcut "<Super>m" "qvm-run -a vpn-gateway gnome-terminal"
