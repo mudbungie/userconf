@@ -62,15 +62,22 @@ function install_confs {
     backup_file userconf
     git clone $repo
     cd userconf
-    confs=$(git ls-files |grep -v deploy.sh)
+    confs=$(git ls-files |grep -vE 'deploy.sh|.bash_localrc')
     for conf in $confs; do
         echo "Installing $HOME/$conf"
         backup_file "$HOME/$conf"
         cp "$conf" "$HOME/$conf"
     done
+    if [ ! -f "$HOME/.bash_localrc" ] ; then
+        echo "Installing stub $HOME/.bash_localrc"
+        cp ".bash_localrc" "$HOME"
+    fi
     cd ../
     rm -rf userconf
     unbackup_file userconf
     echo "Done installing configuration files."
 }
 
+if [[ "$1" == '-i' ]] ; then
+    install_confs;
+fi
