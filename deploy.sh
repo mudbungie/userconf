@@ -2,6 +2,19 @@
 
 repo="https://github.com/mudbungie/userconf"
 
+function find_best_hash_function {
+    declare -a hash_functions=("sha512sum" "sha512" "sha256sum" "sha256"
+        "sha1sum" "sha1" "shasum" "md5sum" "md5")
+    for hash_function in "${hash_functions[@]}"; do
+        which $hash_function>/dev/null
+        if [ $? -eq 0 ]; then
+            echo $hash_function
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Move the file to .bak, recursively, so that you never squash.
 function backup_file {
     if [ -e "$1" ]; then 
@@ -63,10 +76,17 @@ function install_confs {
     git clone $repo
     cd userconf
     confs=$(git ls-files |grep -vE 'deploy.sh|.bash_localrc')
+    hash_function=$(find_best_hash_function)
     for conf in $confs; do
-        echo "Installing $HOME/$conf"
-        backup_file "$HOME/$conf"
-        cp "$conf" "$HOME/$conf"
+        original_hash=$($hash_function $HOME/$conf | cut -d ' ' -f 1)
+        new_hash=$($hash_function $conf | cut -d ' ' -f 1)
+        if [ $original_hash == $new_hash ]; then
+            echo "$HOME/$conf up to date, leaving unchanged."
+        else
+            echo "Installing $HOME/$conf"
+            backup_file "$HOME/$conf"
+            cp "$conf" "$HOME/$conf"
+        fi
     done
     if [ ! -f "$HOME/.bash_localrc" ] ; then
         echo "Installing stub $HOME/.bash_localrc"
