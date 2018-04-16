@@ -15,6 +15,17 @@ function add_to_path {
     fi
 }
 
+function get_char_limited_path {
+    CWD=`pwd`
+    CWD=$(echo $CWD | sed "s*$HOME*~*g")
+    CWDlen=$(echo $CWD | wc -c)
+    # Concatenate beginning and ends of long paths around '...'
+    if [ $CWDlen -gt 37 ]; then
+        CWD="${CWD:0:18}...${CWD: -18}"
+    fi
+    echo $CWD
+}
+
 # Generates a PS1 value.
 function gen_PS1 {
     # Arguments.
@@ -51,7 +62,9 @@ function gen_PS1 {
 
     # Current working directory.
     out=$out':'
-    out=$out'\[$YELLOW\]\w\[$RESTORE\]'
+    out=$out'\[$YELLOW\]'
+    out=$out'$(get_char_limited_path)'
+    out=$out'\[$RESTORE\]'
 
     out=$out'['
     out=$out'\[$RED\]'
