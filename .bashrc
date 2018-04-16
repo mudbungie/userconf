@@ -143,6 +143,7 @@ export PYTHONSTARTUP="$HOME/.pythonrc"
 alias ip?='curl doihaveinter.net/IP'
 alias ll='ls -al'
 alias kinit='kinit -f'
+alias wcc='wc -c'
 
 # Domain-specific configuration.
 if hostname -f |grep -q 'amazon.com' ; then
