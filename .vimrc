@@ -22,4 +22,4 @@ hi MatchParen cterm=bold ctermfg=black
 au FileType python setl sw=4 sts=4 et
 au FileType ruby setl sw=2 sts=2 noet
 au FileType javascript setl sw=2 sts=2 noet
-au FileType json setl sw=2 sts=2 noet
+au FileType json setl sw=2 sts=2 et
