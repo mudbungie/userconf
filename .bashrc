@@ -20,10 +20,8 @@ shopt -s checkwinsize
 
 # If set, the pattern "**" used in a pathname expansion context will
 # match all files and zero or more directories and subdirectories.
-# Not supported on OSX
-if [ $(uname |grep Darwin) ]; then
-    shopt -s globstar
-fi
+# Not supported on OSX, so suppress the error.
+shopt -s globstar 2>/dev/null
 
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
