@@ -155,4 +155,5 @@ function set_xfce4_shortcuts {
     set_command_shortcut "<Super>f" "qvm-run -a personal firefox"
     set_command_shortcut "<Super>g" "qvm-run -a gmail firefox"
     set_command_shortcut "<Super>v" "qvm-run -a dev gnome-terminal"
+    set_command_shortcut "<Super>k" "qvm-run -a keepass keepassx"
 }
