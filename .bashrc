@@ -159,6 +159,9 @@ if hostname -f |grep -q 'amazon.com' ; then
     add_to_path '/apollo/env/OctaneBrazilTools/bin'
     add_to_path '/apollo/env/BrazilCLI/public-bin/brazil'
 
+    sed -i 's/mudbungie/oribi/g' ~/.gitconfig
+    sed -i 's/gmail/amazon/g' ~/.gitconfig
+
     alias cmwb='/apollo/env/ChangeManagementWorkBench/bin/ChangeManagementWorkbench'
     alias bo='brazil-octane'
     alias mwinit='mwinit -o'
