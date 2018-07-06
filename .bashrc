@@ -166,6 +166,9 @@ if hostname -f |grep -q 'amazon.com' ; then
     alias bo='brazil-octane'
     alias mwinit='mwinit -o'
 
+    # Fix internal certs
+    export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-bundle.crt
+
     alias cmex='OVERRIDE_ENVROOT=/apollo/env/ChangeManagementWorkbench /home/oribi/workspaces/ChangeManagementWorkbenchExtensions/src/ChangeManagementWorkbenchExtensions/my_extensions/bin/ChangeManagementWorkbenchMod'
 fi 
 
