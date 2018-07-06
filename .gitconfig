@@ -24,6 +24,7 @@
     p = push
     pom = push origin master
     poma = push origin mainline
+    pod = push origin dev
 
     l = "!. ~/.githelpers && pretty_git_log"
     r = !GIT_NO_PAGER=1 git l -30
