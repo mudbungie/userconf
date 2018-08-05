@@ -12,6 +12,7 @@
     aa = add --all
     ca = commit --amend
     ci = commit --verbose
+    cia = commit --amend --verbose
     co = checkout
     di = diff
     dic = diff --cached
