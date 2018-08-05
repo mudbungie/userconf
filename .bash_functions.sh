@@ -26,6 +26,20 @@ function get_char_limited_path {
     echo $CWD
 }
 
+function waist {
+    # Take specific line from file.
+    # Takes one or two positional arguments, of which the last is a line number.
+    # If there are two arguements, the first is a filename, 
+    if [ $2 ] ; then
+        FILENAME=$1
+        LINE=$2
+    else
+        FILENAME='-'
+        LINE=$1
+    fi
+    cat $FILENAME | head -n $LINE | tail -n 1
+}
+
 # Generates a PS1 value.
 function gen_PS1 {
     # Arguments.
