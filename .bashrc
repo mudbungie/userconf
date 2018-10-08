@@ -174,7 +174,7 @@ fi
 
 # awscli
 if [ $(which aws) ] && [ $(which aws_completer) ]; then
-    complete -C `which aws_completer` aws`
+    complete -C `which aws_completer` aws
 
 # DO NOT ADD AFTER THIS LINE. LOCAL CONFIG SHOULD BE LAST.
 # Include local configuration.
