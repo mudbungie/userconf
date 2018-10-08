@@ -172,9 +172,14 @@ if hostname -f |grep -q 'amazon.com' ; then
     alias cmex='OVERRIDE_ENVROOT=/apollo/env/ChangeManagementWorkbench /home/oribi/workspaces/ChangeManagementWorkbenchExtensions/src/ChangeManagementWorkbenchExtensions/my_extensions/bin/ChangeManagementWorkbenchMod'
 fi 
 
-# awscli
+# awscli autocomplete
 if [ $(which aws) ] && [ $(which aws_completer) ]; then
     complete -C `which aws_completer` aws
+fi
+
+# fix stupid keyboard bug
+if [[ $(uname -a |grep qubes) ]] ; then
+    xmodmap -e 'keycode 94 = backslash bar'
 fi
 
 # DO NOT ADD AFTER THIS LINE. LOCAL CONFIG SHOULD BE LAST.
