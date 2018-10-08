@@ -48,7 +48,7 @@ function install_packages {
     fi
 
     # Programs that I want installed.
-    programs="vim wget curl python3 git ack"
+    programs="vim wget curl python3 git jq"
     echo "Installing the following programs: $programs."
     # If root, don't use sudo.
     if [ $(id -u) != 0 ]; then

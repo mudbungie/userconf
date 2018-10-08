@@ -7,6 +7,21 @@ function retry {
     done
 }
 
+# pipe it into jq and back out
+function rectify_json {
+    if ! [[ $(which jq) ]]; then
+        echo "jq not installed"
+        return 1
+    fi
+    if ! [[ $(which sponge) ]]; then
+        echo "sponge not installed"
+        return 2
+    fi
+    if [[ $(jq . $1) ]]; then
+        jq . $1 |sponge $1
+    fi
+}
+
 # Non-clobbering path addition.
 function add_to_path {
     pathlines=$(echo PATH|sed 's/:/\n/g') # Split path by lines.
