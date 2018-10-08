@@ -93,6 +93,7 @@ function install_confs {
         cp ".bash_localrc" "$HOME"
     fi
     cd ../
+    echo "Cleaning up temporary directory."
     rm -rf userconf
     unbackup_file userconf
     echo "Done installing configuration files."
