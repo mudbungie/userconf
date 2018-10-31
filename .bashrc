@@ -148,6 +148,7 @@ alias wcc='wc -c'
 
 # Domain-specific configuration.
 if hostname -f |grep -q 'amazon.com' ; then
+    add_to_path "$HOME/.toolbox/bin"
     add_to_path '/apollo/env/SDETools/bin'
     add_to_path '/apollo/env/envImprovement/bin'
     add_to_path '/apollo/bin'
