@@ -78,13 +78,18 @@ function install_confs {
     confs=$(git ls-files |grep -vE 'deploy.sh|.bash_localrc')
     hash_function=$(find_best_hash_function)
     for conf in $confs; do
-        original_hash=$($hash_function $HOME/$conf | cut -d ' ' -f 1)
-        new_hash=$($hash_function $conf | cut -d ' ' -f 1)
-        if [ $original_hash == $new_hash ]; then
-            echo "$HOME/$conf up to date, leaving unchanged."
+        if [ -f "$HOME/$conf" ]; then
+            original_hash=$($hash_function $HOME/$conf | cut -d ' ' -f 1)
+            new_hash=$($hash_function $conf | cut -d ' ' -f 1)
+            if [ $original_hash == $new_hash ]; then
+                echo "$HOME/$conf up to date, leaving unchanged."
+            else
+                echo "Installing $HOME/$conf"
+                backup_file "$HOME/$conf"
+                cp "$conf" "$HOME/$conf"
+            fi
         else
             echo "Installing $HOME/$conf"
-            backup_file "$HOME/$conf"
             cp "$conf" "$HOME/$conf"
         fi
     done
