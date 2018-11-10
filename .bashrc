@@ -166,6 +166,7 @@ if hostname -f |grep -q 'amazon.com' ; then
     alias cmwb='/apollo/env/ChangeManagementWorkBench/bin/ChangeManagementWorkbench'
     alias bo='brazil-octane'
     alias mwinit='mwinit -o'
+    alias bre='brazil-runtime-exec'
 
     # Fix internal certs
     export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-bundle.crt
