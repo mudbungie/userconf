@@ -186,3 +186,13 @@ function set_xfce4_shortcuts {
     set_command_shortcut "<Super>v" "qvm-run -a dev gnome-terminal"
     set_command_shortcut "<Super>k" "qvm-run -a keepass keepassx"
 }
+
+function mac_compliant_inline_sed {
+    # ffs mac has to have their own sed flags
+    if $(uname |grep -q "Darwin")
+    then 
+        sed -i .bak "$1" "$2"
+    else
+        sed -i "$1" ""$2
+    fi
+}
