@@ -161,8 +161,8 @@ if hostname -f |grep -q 'amazon.com' ; then
     add_to_path '/apollo/env/OctaneBrazilTools/bin'
     add_to_path '/apollo/env/BrazilCLI/public-bin/brazil'
 
-    mac_compliant_inline_sed -i 's/mudbungie/oribi/g' ~/.gitconfig
-    mac_compliant_inline_sed -i 's/gmail/amazon/g' ~/.gitconfig
+    mac_compliant_inline_sed 's/mudbungie/oribi/g' ~/.gitconfig
+    mac_compliant_inline_sed 's/gmail/amazon/g' ~/.gitconfig
 
     alias cmwb='/apollo/env/ChangeManagementWorkBench/bin/ChangeManagementWorkbench'
     alias bo='brazil-octane'
