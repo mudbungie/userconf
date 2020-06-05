@@ -77,7 +77,11 @@ function gen_PS1 {
     
     #out=$out"\u${RESTORE}@"
     #out='\[${YELLOW}\]\u\[${Normal}\]@\[${NORMAL}\]'
-    out=$out'\[$CYAN\]\u\[$RESTORE\]'
+    if [[ $(id -u) -eq 0 ]]; then
+        out=$out'\[$LRED\]\u\[$RESTORE\]'
+    else
+        out=$out'\[$CYAN\]\u\[$RESTORE\]'
+    fi
     out=$out'@'
     #out=$out'\[$LBLUE\]\h\[$RESTORE\]'
 
