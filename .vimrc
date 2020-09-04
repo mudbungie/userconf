@@ -13,6 +13,8 @@ set wildmenu " shows possibilities for tab-completion
 set showmatch " highlight matching paired operators
 set incsearch " search as I type the search criteria, not just when I hit enter
 set hlsearch " highlight search matches
+set visualbell " fuck bells
+
 hi MatchParen cterm=bold ctermfg=black
 
 au FileType python setl sw=4 sts=4 et

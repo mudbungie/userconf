@@ -32,6 +32,30 @@ function unbackup_file {
     fi
 }
 
+function kill_bell {
+    # Disable the terminal bell
+    if [[ $(whoami) != "root" ]]; then
+        echo "Bell correction cannot be done except as root."
+        return 1
+    fi
+
+    if [ -e "/etc/inputrc" ] ; then
+        echo "/etc/inputrc exists"
+        grep 'set bell-style none' /etc/inputrc | grep -vq '#'
+        if [[ $? == 0 ]]; then
+            echo "bell-style none already set in /etc/inputrc"
+            return 0
+        else
+            echo "bell-style none not set in /etc/inputrc. Appending."
+            echo "set bell-style none" >> /etc/inputrc
+            return 0
+        fi
+    else
+        echo "/etc/inputrc does not exist. Unknown environment, not attempting anything."
+        
+    fi
+}
+
 function install_packages {
     # Test to see what package managers are available.
     declare -a installers=("yum" "dnf" "apt" "brew")
