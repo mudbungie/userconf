@@ -146,6 +146,7 @@ alias ip?='curl doihaveinter.net/IP'
 alias ll='ls -al'
 alias kinit='kinit -f'
 alias wcc='wc -c'
+alias today='vim ~/notes/daily/`date +%Y-%m-d`'
 
 # Domain-specific configuration.
 if hostname -f |grep -q 'amazon.com' ; then

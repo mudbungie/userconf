@@ -90,7 +90,13 @@ function install_packages {
     fi
 }
 
+function make_notes_dir {
+    mkdir -p ~/notes/daily
+}
+
 function install_confs {
+    echo "Making required directories."
+    make_notes_dir
     echo "Installing configuration files."
     if [[ ! $(which git) ]] ; then
         echo "git not installed"
