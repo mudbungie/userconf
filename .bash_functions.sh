@@ -200,3 +200,21 @@ function mac_compliant_inline_sed {
         sed -i "$1" ""$2
     fi
 }
+
+function env_assume_role {
+    role_arn=$1
+
+    OUTPUT=$(aws sts assume-role --role-arn "$1" --role-session-name "session" 2>&1) 
+
+    if echo $OUTPUT | grep "InvalidClientTokenId"; then
+        OUTPUT=$(aws --profile default sts assume-role --role-arn "$1" --role-session-name "session")
+    fi
+    
+    AccessKeyId=$(echo $OUTPUT | jq -r .Credentials.AccessKeyId)
+    SecretAccessKey=$(echo $OUTPUT | jq -r .Credentials.SecretAccessKey)
+    SessionToken=$(echo $OUTPUT | jq -r .Credentials.SessionToken)
+
+    export AWS_ACCESS_KEY_ID=$AccessKeyId
+    export AWS_SECRET_ACCESS_KEY=$SecretAccessKey
+    export AWS_SESSION_TOKEN=$SessionToken
+}
