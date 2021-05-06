@@ -23,8 +23,10 @@
     noff = merge --no-ff
     fa = fetch --all
     p = push
+    po = push origin
     pom = push origin master
-    poma = push origin mainline
+    poma = push origin main
+    poml = push origin mainline
     pod = push origin dev
 
     l = "!. ~/.githelpers && pretty_git_log"
