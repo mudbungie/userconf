@@ -1,7 +1,5 @@
 #!/bin/bash
 
-repo="https://github.com/mudbungie/userconf"
-
 function find_best_hash_function {
     declare -a hash_functions=("sha512sum" "sha512" "sha256sum" "sha256"
         "sha1sum" "sha1" "shasum" "md5sum" "md5")
@@ -91,21 +89,20 @@ function install_packages {
 }
 
 function make_notes_dir {
+    echo "Making required directories."
     mkdir -p ~/notes/daily
 }
 
-function install_confs {
-    echo "Making required directories."
+
+
+function configure_user {
+    echo "Configuring user..."
     make_notes_dir
-    echo "Installing configuration files."
     if [[ ! $(which git) ]] ; then
         echo "git not installed"
         return 1
     fi
-    backup_file userconf
-    git clone $repo
-    cd userconf
-    confs=$(git ls-files |grep -vE 'deploy.sh|.bash_localrc')
+    confs=$(git ls-files config/ |grep -vE 'deploy.sh|.bash_localrc')
     hash_function=$(find_best_hash_function)
     for conf in $confs; do
         if [ -f "$HOME/$conf" ]; then
@@ -135,5 +132,7 @@ function install_confs {
 }
 
 if [[ "$1" == '-i' ]] ; then
-    install_confs;
+    configure_user;
+else
+    echo "use flag -i if you really mean it"
 fi

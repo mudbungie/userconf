@@ -1,0 +1,10 @@
+Execution order for a new bash prompt:
+
+/etc/profile        always, and inclusively to other files
+In interactive login shells, only the first of these is executed:
+    ~/.bash_profile     if found, does not look for further files
+    ~/.bash_login       if found, does not look for further files
+    ~/.profile          if found, does not look for further files
+In interactive non-login shells the following is executed:
+    ~/.bashrc
+Often, the login shell files will call .bashrc
