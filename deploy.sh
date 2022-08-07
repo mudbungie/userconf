@@ -89,11 +89,9 @@ function install_packages {
 }
 
 function make_notes_dir {
-    echo "Making required directories."
+    echo "Making daily notes directory."
     mkdir -p ~/notes/daily
 }
-
-
 
 function configure_user {
     echo "Configuring user..."
