@@ -138,7 +138,8 @@ function ensure_path_is_correct {
         echo "Path is correct, proceeding."
     else
         echo "Repository should be cloned to ~/userconf, and this script should be run from that path."
-    exit 2
+        exit 2
+    fi
 }
 
 function configure_user {
