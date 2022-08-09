@@ -93,40 +93,61 @@ function make_notes_dir {
     mkdir -p ~/notes/daily
 }
 
-function configure_user {
-    echo "Configuring user..."
-    make_notes_dir
+function ensure_requirements {
+    echo "Ensuring required programs"
     if [[ ! $(which git) ]] ; then
         echo "git not installed"
-        return 1
+        exit 1
     fi
-    confs=$(git ls-files config/ |grep -vE 'deploy.sh|.bash_localrc')
+}
+
+function replace_file_if_new {
+    conf=$1
     hash_function=$(find_best_hash_function)
-    for conf in $confs; do
-        if [ -f "$HOME/$conf" ]; then
-            original_hash=$($hash_function $HOME/$conf | cut -d ' ' -f 1)
-            new_hash=$($hash_function $conf | cut -d ' ' -f 1)
-            if [ $original_hash == $new_hash ]; then
-                echo "$HOME/$conf up to date, leaving unchanged."
-            else
-                echo "Installing $HOME/$conf"
-                backup_file "$HOME/$conf"
-                cp "$conf" "$HOME/$conf"
-            fi
+    if [ -f "$HOME/$conf" ]; then
+        original_hash=$($hash_function $HOME/$conf | cut -d ' ' -f 1)
+        echo "Original file hash: $original_hash"
+        new_hash=$($hash_function $conf | cut -d ' ' -f 1)
+        echo "New file hash: $new_hash"
+        if [ $original_hash == $new_hash ]; then
+            echo "$HOME/$conf up to date, leaving unchanged."
         else
             echo "Installing $HOME/$conf"
-            cp "$conf" "$HOME/$conf"
+            echo backup_file "$HOME/$conf"
+            echo cp "$conf" "$HOME/$conf"
         fi
-    done
-    if [ ! -f "$HOME/.bash_localrc" ] ; then
-        echo "Installing stub $HOME/.bash_localrc"
-        cp ".bash_localrc" "$HOME"
+    else
+        echo "Installing $HOME/$conf"
+        echo cp "$conf" "$HOME/$conf"
     fi
-    cd ../
-    echo "Cleaning up temporary directory."
-    rm -rf userconf
-    unbackup_file userconf
-    echo "Done installing configuration files."
+
+}
+
+function install_bash_config_hooks {
+    echo "Configuring the bash login files to include the config directory."
+    backup_file ~/.profile > ~/.profile
+    echo "source ~/.bashrc" > ~/.profile
+    backup_file ~/.bash_profile
+    echo "source ~/.profile" > ~/.bash_profile
+    backup_file ~/.bashrc
+    echo "source ~/userconf/config/*" > ~/.bashrc
+}
+
+function ensure_path_is_correct {
+    if [ $(pwd) != /home/$USER/userconf ] ; then
+        echo "Path is correct, proceeding."
+    else
+        echo "Repository should be cloned to ~/userconf, and this script should be run from that path."
+    exit 2
+}
+
+function configure_user {
+    echo "Configuring user..."
+    ensure_path_is_correct
+    ensure_requirements
+    make_notes_dir
+    install_bash_config_hooks
+    echo "Done configuring user."
 }
 
 if [[ "$1" == '-i' ]] ; then
