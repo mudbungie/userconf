@@ -146,7 +146,7 @@ function install_dotfiles {
     for appconfig in dotfiles/*; do
         filename=$(echo $appconfig | cut -d '/' -f 2)
         backup_file "~/.$filename"
-        cp "~/userconf/dotfiles/$filename" "~/.$filename"
+        cp "$HOME/userconf/dotfiles/$filename" "$HOME/.$filename"
     done
 }
 
