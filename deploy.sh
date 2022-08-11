@@ -143,7 +143,7 @@ function ensure_path_is_correct {
 }
 
 function install_app_config_files {
-    declare -a appconfigs=$(ls -A app_config)
+    appconfigs=$(ls -A app_config)
     for appconfig in "${appconfigs[@]}"; do
         backup_file $appconfig
         cp "~/userconf/app_config/$appconfig" "~/"
