@@ -123,13 +123,24 @@ function replace_file_if_new {
 
 }
 
+function backup_file_if_new_content {
+    file=$1
+    content=$2
+    file_content=$(cat $file)
+
+    hash_function=find_best_hash_function
+    if [ $($hash_function $file_content) = $($hash_function $content) ] ; then
+        backup_file $file
+    fi
+}
+
 function install_bash_config_hooks {
     echo "Configuring the bash login files to include the config directory."
-    backup_file ~/.profile > ~/.profile
+    backup_file_if_new_content ~/.profile "source ~/.bashrc"
     echo "source ~/.bashrc" > ~/.profile
-    backup_file ~/.bash_profile
+    backup_file_if_new_content ~/.bash_profile "source ~/.profile"
     echo "source ~/.profile" > ~/.bash_profile
-    backup_file ~/.bashrc
+    backup_file_if_new_content ~/.bashrc "source ~/userconf/config/*"
     echo "source ~/userconf/config/*" > ~/.bashrc
 }
 
