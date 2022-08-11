@@ -1,6 +1,10 @@
 # Enable the color shortcuts. Preceding bash_functions may break without this.
 bash_colors
 
+# Enforce color settings
+force_color_prompt=yes
+color_prompt=yes
+
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
 shopt -s checkwinsize
