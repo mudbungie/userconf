@@ -29,10 +29,10 @@
     poml = push origin mainline
     pod = push origin dev
 
-    l = "!. ~/.githelpers && pretty_git_log"
+    l = "!. ~/userconf/config/70_githelpers.sh && pretty_git_log"
     r = !GIT_NO_PAGER=1 git l -30
     ra = !git r --all
     head = !git r -1
     h = !git head
-    b = "!. ~/.githelpers && pretty_git_branch"
-    b = "!. ~/.githelpers && pretty_git_branch_sorted"
+    b = "!. ~/userconf/config/70_githelpers.sh && pretty_git_branch"
+    b = "!. ~/userconf/config/70_githelpers.sh && pretty_git_branch_sorted"
