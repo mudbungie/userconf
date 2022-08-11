@@ -143,7 +143,7 @@ function install_bash_config_hooks {
     backup_file_if_new_content ~/.bash_profile "source ~/.profile"
     echo "source ~/.profile" > ~/.bash_profile
     backup_file_if_new_content ~/.bashrc "source ~/userconf/config/*"
-    echo "for f in ~/userconf/config/* ; do source $f ; done" > ~/.bashrc
+    echo 'for f in ~/userconf/config/* ; do source $f ; done' > ~/.bashrc
 }
 
 function ensure_path_is_correct {
