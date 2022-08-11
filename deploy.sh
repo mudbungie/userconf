@@ -130,7 +130,7 @@ function backup_file_if_new_content {
 
     hash_function=find_best_hash_function
     new_hash=
-    if [ $(echo $file_content | $hash_function) = $(echo $file_content | $hash_function) ] ; then
+    if [ $(echo $file_content | $hash_function) == $(echo $file_content | $hash_function) ] ; then
         backup_file $file
     fi
 }
