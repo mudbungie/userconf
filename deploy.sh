@@ -145,7 +145,7 @@ function ensure_path_is_correct {
 function install_dotfiles {
     for appconfig in dotfiles/*; do
         filename=$(echo $appconfig | cut -d '/' -f 2)
-        backup_file $filename
+        backup_file "~/.$filename"
         cp "~/userconf/dotfiles/$filename" "~/.$filename"
     done
 }
