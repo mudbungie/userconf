@@ -129,8 +129,9 @@ function backup_file_if_new_content {
     file_content=$(cat $file)
 
     hash_function=find_best_hash_function
-    new_hash=
-    if [ $(echo $file_content | $hash_function) == $(echo $file_content | $hash_function) ] ; then
+    new_hash=$(echo $content | $hash_function)
+    old_hash=$(echo $file_content | $hash_function)
+    if [ $new_hash != $old_hash ] ; then
         backup_file $file
     fi
 }
