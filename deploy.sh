@@ -142,11 +142,10 @@ function ensure_path_is_correct {
     fi
 }
 
-function install_app_config_files {
-    appconfigs=$(ls -A app_config)
-    for appconfig in "${appconfigs[@]}"; do
+function install_dotfiles {
+    for appconfig in dotfiles/*; do
         backup_file $appconfig
-        cp "~/userconf/app_config/$appconfig" "~/"
+        cp "~/userconf/dotfiles/$appconfig" "~/.$appconfig"
     done
 }
 
@@ -156,7 +155,7 @@ function configure_user {
     ensure_requirements
     make_notes_dir
     install_bash_config_hooks
-    install_app_config_files
+    install_dotfiles
     echo "Done configuring user."
 }
 
