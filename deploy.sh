@@ -147,7 +147,7 @@ function install_bash_config_hooks {
 }
 
 function ensure_path_is_correct {
-    if [ $(pwd) = /home/$USER/userconf ] ; then
+    if [ $(pwd) = $HOME/userconf ] ; then
         echo "Path is correct, proceeding."
     else
         echo "Repository should be cloned to ~/userconf, and this script should be run from that path."
