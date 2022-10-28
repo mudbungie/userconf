@@ -8,7 +8,7 @@
 [merge]
     tool = vimdiff
 [format]
-    pretty = format:%h %Cblue%Creset %ae %Cgreen%s%Creset
+    pretty = format:%C(bold red)%h%C(reset) %C(bold cyan)%ar%C(reset) %C(magenta)%d%C(reset) %s %C(reset)
 [alias]
     a = add
     aa = add --all
@@ -39,4 +39,3 @@
     b = "!. ~/userconf/config/70_githelpers.sh && pretty_git_branch"
     b = "!. ~/userconf/config/70_githelpers.sh && pretty_git_branch_sorted"
 
-    plog=log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=short --branches
