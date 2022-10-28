@@ -7,6 +7,8 @@
     ui = auto
 [merge]
     tool = vimdiff
+[format]
+    pretty = format:%h %Cblue%Creset %ae %Cgreen%s%Creset
 [alias]
     a = add
     aa = add --all
