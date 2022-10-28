@@ -38,3 +38,5 @@
     h = !git head
     b = "!. ~/userconf/config/70_githelpers.sh && pretty_git_branch"
     b = "!. ~/userconf/config/70_githelpers.sh && pretty_git_branch_sorted"
+
+    plog=log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=short --branches
