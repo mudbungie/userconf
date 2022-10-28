@@ -159,4 +159,3 @@ function env_assume_role {
     export AWS_SECRET_ACCESS_KEY=$SecretAccessKey
     export AWS_SESSION_TOKEN=$SessionToken
 }
-
