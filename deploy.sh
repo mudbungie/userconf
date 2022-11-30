@@ -88,6 +88,12 @@ function install_packages {
     fi
 }
 
+function install_not_packages {
+    # Node and python and stuff
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
+    curl -sSL https://install.python-poetry.org | python3 -
+}
+
 function make_notes_dir {
     echo "Making daily notes directory."
     mkdir -p ~/notes/daily
@@ -168,6 +174,8 @@ function configure_user {
     ensure_path_is_correct
     ensure_requirements
     make_notes_dir
+    install_packages
+    install_not_packages
     install_bash_config_hooks
     install_dotfiles
     echo "Done configuring user."
