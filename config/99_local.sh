@@ -1,1 +1,1 @@
-source ~/.localrc
+source ~/.bash_localrc
