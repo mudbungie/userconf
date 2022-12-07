@@ -64,7 +64,7 @@ function install_packages {
         fi
     done
 
-    if [ !$installer ]; then
+    if [ !$pkgmgr ]; then
         echo "No package manager detected."
         return 2
     fi
