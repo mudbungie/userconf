@@ -30,6 +30,13 @@ function add_to_path {
     fi
 }
 
+function prepend_to_path {
+    pathlines=$(echo PATH|sed 's/:/\n/g') # Split path by lines.
+    if ! echo $PATH |grep -q $1 ; then
+        export PATH="$1:$PATH"
+    fi
+}
+
 function get_char_limited_path {
     CWD=`pwd`
     CWD=$(echo $CWD | sed "s*$HOME*~*g")
