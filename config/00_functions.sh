@@ -37,6 +37,10 @@ function prepend_to_path {
     fi
 }
 
+function print_path {
+    echo $PATH | sed 's/:/\n/g'
+}
+
 function get_char_limited_path {
     CWD=`pwd`
     CWD=$(echo $CWD | sed "s*$HOME*~*g")
