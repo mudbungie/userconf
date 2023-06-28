@@ -29,8 +29,8 @@ if ! shopt -oq posix; then
 fi
 
 # Add my local bins to the path.
-add_to_path "$HOME/bin"
-add_to_path "$HOME/.local/bin"
+prepend_to_path "$HOME/bin"
+prepend_to_path "$HOME/.local/bin"
 
 # Use vim.
 EDITOR=vim
