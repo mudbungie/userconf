@@ -173,11 +173,11 @@ function configure_user {
     echo "Configuring user..."
     ensure_path_is_correct
     ensure_requirements
-    make_notes_dir
+    # make_notes_dir
     install_packages
-    install_not_packages
-    install_bash_config_hooks
-    install_dotfiles
+    # install_not_packages
+    # install_bash_config_hooks
+    # install_dotfiles
     echo "Done configuring user."
 }
 
