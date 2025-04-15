@@ -43,11 +43,15 @@ function gen_PS1 {
     out=$out'$(get_char_limited_path)'
     out=$out'\[$RESTORE\]'
 
-    out=$out'['
-    out=$out'\[$RED\]'
-    out=$out"\$(date +%s)"
-    out=$out'\[$RESTORE\]'
-    out=$out']'
+    # Timestamp in terminal
+    #out=$out'['
+    #out=$out'\[$RED\]s'
+    # unix time
+    #out=$out"\$(date +%s)"
+    # timestamp
+    #out=$out"\$(date +%F-%T)"
+    #out=$out'\[$RESTORE\]'
+    #out=$out']'
 
     # show the current git branch
     out=$out'\[$LIGHTGRAY\]'
