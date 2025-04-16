@@ -170,3 +170,8 @@ function env_assume_role {
     export AWS_SECRET_ACCESS_KEY=$SecretAccessKey
     export AWS_SESSION_TOKEN=$SessionToken
 }
+
+function source_if_exists {
+    [ -f "$1" ] && source "$1"
+}
+
