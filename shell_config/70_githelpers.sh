@@ -1,13 +1,3 @@
-#!/bin/bash
-
-# Log output:
-#
-# * 51c333e    (12 days)    <Gary Bernhardt>   add vim-eunuch
-#
-# Branch output:
-#
-# * release/v1.1    (13 days)    <Leyan Lo>   add pretty_git_branch
-#
 # The time massaging regexes start with ^[^<]* because that ensures that they
 # only operate before the first "<". That "<" will be the beginning of the
 # author name, ensuring that we don't destroy anything in the commit message
@@ -69,3 +59,4 @@ git_page_maybe() {
         less --quit-if-one-screen --no-init --RAW-CONTROL-CHARS --chop-long-lines
     fi
 }
+

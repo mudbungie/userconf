@@ -55,9 +55,7 @@ function gen_PS1 {
 
     # show the current git branch
     out=$out'\[$LIGHTGRAY\]'
-    out=$out'{'
-    out=$out'$(git branch --show-current 2>/dev/null)'
-    out=$out'}'
+    out=$out'$(is_git_repo && echo "{$(git branch --show-current 2>/dev/null)}")'
     out=$out'\[$RESTORE\]'
 
     # $/# prompt terminus.

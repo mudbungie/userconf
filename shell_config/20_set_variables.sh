@@ -36,5 +36,3 @@ prepend_to_path "$HOME/.local/bin"
 EDITOR=vim
 VISUAL=$EDITOR
 
-# Include pythonrc
-export PYTHONSTARTUP="$HOME/.pythonrc"
