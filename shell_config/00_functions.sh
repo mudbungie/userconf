@@ -52,21 +52,6 @@ function get_char_limited_path {
     echo $CWD
 }
 
-function waist {
-    # Take specific line from file.
-    # Takes one or two positional arguments, of which the last is a line number.
-    # If there are two arguements, the first is a filename, 
-    if [ $2 ] ; then
-        FILENAME=$1
-        LINE=$2
-    else
-        FILENAME='-'
-        LINE=$1
-    fi
-    cat $FILENAME | head -n $LINE | tail -n 1
-}
-
-
 function show_git_branch {
     git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
 }
