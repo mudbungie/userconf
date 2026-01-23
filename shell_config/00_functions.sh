@@ -133,14 +133,6 @@ function set_xfce4_shortcuts {
     set_command_shortcut "<Primary><Alt>l" "xflock4"
     set_command_shortcut "<Super>l" "xflock4"
     set_command_shortcut "<Super>t" "xfce4-terminal"
-    set_command_shortcut "<Super>h" "qvm-run -a personal-ssh gnome-terminal"
-    set_command_shortcut "<Super>m" "qvm-run -a vpn-gateway gnome-terminal"
-    set_command_shortcut "<Super>n" "qvm-run -a sys-net gnome-terminal"
-    set_command_shortcut "<Super>u" "qvm-run -a untrusted-debian gnome-terminal"
-    set_command_shortcut "<Super>f" "qvm-run -a personal firefox"
-    set_command_shortcut "<Super>g" "qvm-run -a gmail firefox"
-    set_command_shortcut "<Super>v" "qvm-run -a dev gnome-terminal"
-    set_command_shortcut "<Super>k" "qvm-run -a keepass keepassx"
 }
 
 function mac_compliant_inline_sed {
