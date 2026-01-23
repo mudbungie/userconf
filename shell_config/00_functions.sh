@@ -126,7 +126,7 @@ function mac_compliant_inline_sed {
     then 
         sed -i .bak "$1" "$2"
     else
-        sed -i "$1" ""$2
+        sed -i "$1" "$2"
     fi
 }
 
