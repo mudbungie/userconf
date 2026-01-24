@@ -23,9 +23,9 @@ function backup_file {
 }
 
 function unbackup_file {
-    if [ -e $1.bak ] ; then
-        echo "Restoring $1.back to $1"
-        mv $1.bak $1/
+    if [ -e "$1.bak" ] ; then
+        echo "Restoring $1.bak to $1"
+        mv "$1.bak" "$1"
         unbackup_file "$1.bak"
     fi
 }

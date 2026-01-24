@@ -333,6 +333,32 @@ test_backup_file() {
     teardown
 }
 
+test_unbackup_file() {
+    echo "=== Testing unbackup_file ==="
+    setup
+
+    source <(sed -n '1,/^if \[\[/p' "$REPO_ROOT/deploy.sh" | head -n -1)
+
+    # Create a backed up file
+    echo "backed up content" > "$TEST_DIR/testfile.txt.bak"
+
+    # Restore it
+    unbackup_file "$TEST_DIR/testfile.txt"
+
+    # .bak should be gone, original should exist
+    if [ -e "$TEST_DIR/testfile.txt" ] && [ ! -e "$TEST_DIR/testfile.txt.bak" ]; then
+        pass "unbackup_file restores .bak to original"
+    else
+        fail "unbackup_file" "file restored from .bak" "file not properly restored"
+    fi
+
+    # Verify content
+    local content=$(cat "$TEST_DIR/testfile.txt")
+    assert_equals "backed up content" "$content" "unbackup_file preserves file content"
+
+    teardown
+}
+
 test_ensure_path_is_correct() {
     echo "=== Testing ensure_path_is_correct ==="
 
@@ -539,6 +565,8 @@ echo ""
 test_find_best_hash_function
 echo ""
 test_backup_file
+echo ""
+test_unbackup_file
 echo ""
 test_ensure_path_is_correct
 echo ""
