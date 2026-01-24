@@ -119,12 +119,12 @@ function replace_file_if_new {
             echo "$HOME/$conf up to date, leaving unchanged."
         else
             echo "Installing $HOME/$conf"
-            echo backup_file "$HOME/$conf"
-            echo cp "$conf" "$HOME/$conf"
+            backup_file "$HOME/$conf"
+            cp "$conf" "$HOME/$conf"
         fi
     else
         echo "Installing $HOME/$conf"
-        echo cp "$conf" "$HOME/$conf"
+        cp "$conf" "$HOME/$conf"
     fi
 
 }
@@ -132,13 +132,16 @@ function replace_file_if_new {
 function backup_file_if_new_content {
     file=$1
     content=$2
-    file_content=$(cat $file)
 
-    hash_function=find_best_hash_function
-    new_hash=$(echo $content | $hash_function)
-    old_hash=$(echo $file_content | $hash_function)
-    if [ $new_hash != $old_hash ] ; then
-        backup_file $file
+    # If file doesn't exist, nothing to back up
+    [ -f "$file" ] || return 0
+
+    file_content=$(cat "$file")
+    hash_function=$(find_best_hash_function)
+    new_hash=$(echo "$content" | $hash_function | cut -d ' ' -f 1)
+    old_hash=$(echo "$file_content" | $hash_function | cut -d ' ' -f 1)
+    if [ "$new_hash" != "$old_hash" ] ; then
+        backup_file "$file"
     fi
 }
 
