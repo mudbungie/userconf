@@ -1,0 +1,6 @@
+.claude_status
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
