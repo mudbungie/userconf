@@ -149,7 +149,7 @@ function env_assume_role {
 }
 
 function source_if_exists {
-    [ -f "$1" ] && source "$1"
+    [ -f "$1" ] && source "$1" || true
 }
 
 function is_git_repo {
