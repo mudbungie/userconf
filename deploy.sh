@@ -148,8 +148,8 @@ function install_bash_config_hooks {
     echo "source ~/.bashrc" > ~/.profile
     backup_file_if_new_content ~/.bash_profile "source ~/.profile"
     echo "source ~/.profile" > ~/.bash_profile
-    backup_file_if_new_content ~/.bashrc "source ~/userconf/config/*"
-    echo 'for f in ~/userconf/config/* ; do source $f ; done' > ~/.bashrc
+    backup_file_if_new_content ~/.bashrc "source ~/userconf/shell_config/*"
+    echo 'for f in ~/userconf/shell_config/* ; do source $f ; done' > ~/.bashrc
 }
 
 function ensure_path_is_correct {
