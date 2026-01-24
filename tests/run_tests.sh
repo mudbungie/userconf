@@ -359,6 +359,67 @@ test_unbackup_file() {
     teardown
 }
 
+test_orb_profile_idempotence() {
+    echo "=== Testing orb_profile idempotence ==="
+    setup
+
+    # Set up a minimal shell_config for testing
+    mkdir -p "$TEST_DIR/userconf/shell_config"
+    echo 'TEST_ORB_COUNTER=$((TEST_ORB_COUNTER + 1))' > "$TEST_DIR/userconf/shell_config/00_test.sh"
+
+    # Create orb_profile pointing to test dir
+    cat > "$TEST_DIR/orb_profile" << 'EOPROFILE'
+[ -n "$ORB_PROFILE_LOADED" ] && return 0
+export ORB_PROFILE_LOADED=1
+ORB_USERCONF_DIR="${ORB_USERCONF_DIR:-$HOME/userconf}"
+for _orb_conf in "$ORB_USERCONF_DIR"/shell_config/*.sh; do
+    [ -f "$_orb_conf" ] && . "$_orb_conf"
+done
+unset _orb_conf
+EOPROFILE
+
+    # Source it twice, counter should only increment once
+    export TEST_ORB_COUNTER=0
+    export ORB_USERCONF_DIR="$TEST_DIR/userconf"
+    unset ORB_PROFILE_LOADED
+
+    . "$TEST_DIR/orb_profile"
+    . "$TEST_DIR/orb_profile"
+
+    assert_equals "1" "$TEST_ORB_COUNTER" "orb_profile idempotence guard prevents double-sourcing"
+
+    teardown
+}
+
+test_inject_orb_profile() {
+    echo "=== Testing inject_orb_profile ==="
+    setup
+
+    source <(sed -n '1,/^if \[\[/p' "$REPO_ROOT/deploy.sh" | head -n -1)
+
+    # Test creating new file
+    inject_orb_profile "$TEST_DIR/newrc" >/dev/null
+    if [ -f "$TEST_DIR/newrc" ] && grep -qF '. ~/userconf/orb_profile' "$TEST_DIR/newrc"; then
+        pass "inject_orb_profile creates new file with hook"
+    else
+        fail "inject_orb_profile create" "file with hook" "missing or no hook"
+    fi
+
+    # Test injecting into existing file
+    echo "# existing content" > "$TEST_DIR/existingrc"
+    inject_orb_profile "$TEST_DIR/existingrc" >/dev/null
+    local first_line=$(head -n 1 "$TEST_DIR/existingrc")
+    assert_equals ". ~/userconf/orb_profile" "$first_line" "inject_orb_profile prepends to existing file"
+
+    # Test idempotence (shouldn't duplicate)
+    local line_count_before=$(grep -cF '. ~/userconf/orb_profile' "$TEST_DIR/existingrc")
+    inject_orb_profile "$TEST_DIR/existingrc" >/dev/null
+    local line_count_after=$(grep -cF '. ~/userconf/orb_profile' "$TEST_DIR/existingrc")
+    assert_equals "$line_count_before" "$line_count_after" "inject_orb_profile is idempotent"
+
+    teardown
+}
+
 test_ensure_path_is_correct() {
     echo "=== Testing ensure_path_is_correct ==="
 
@@ -438,6 +499,7 @@ test_file_structure() {
     # Check all expected files exist
     local files=(
         "deploy.sh"
+        "orb_profile"
         "shell_config/00_functions.sh"
         "shell_config/20_set_variables.sh"
         "shell_config/30_history.sh"
@@ -484,6 +546,7 @@ test_syntax_check() {
 
     local scripts=(
         "deploy.sh"
+        "orb_profile"
         "shell_config/00_functions.sh"
         "shell_config/20_set_variables.sh"
         "shell_config/30_history.sh"
@@ -567,6 +630,10 @@ echo ""
 test_backup_file
 echo ""
 test_unbackup_file
+echo ""
+test_orb_profile_idempotence
+echo ""
+test_inject_orb_profile
 echo ""
 test_ensure_path_is_correct
 echo ""

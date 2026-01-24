@@ -1,0 +1,27 @@
+# orb_profile - Central shell configuration entrypoint
+# This file should be sourced from shell rc files (.bashrc, .zshrc, etc.)
+# It loads all configuration from ~/userconf/shell_config/
+
+# Idempotence guard - prevent double-sourcing
+[ -n "$ORB_PROFILE_LOADED" ] && return 0
+export ORB_PROFILE_LOADED=1
+
+# Determine the userconf directory location
+# Default to ~/userconf, but allow override via ORB_USERCONF_DIR
+ORB_USERCONF_DIR="${ORB_USERCONF_DIR:-$HOME/userconf}"
+
+# Verify the directory exists
+if [ ! -d "$ORB_USERCONF_DIR/shell_config" ]; then
+    echo "Warning: $ORB_USERCONF_DIR/shell_config not found" >&2
+    return 1
+fi
+
+# Detect current shell for any shell-specific handling
+ORB_SHELL_NAME="${ORB_SHELL_NAME:-$(basename "$SHELL")}"
+
+# Source all configuration files in order
+# The numeric prefix determines load order (00_, 20_, etc.)
+for _orb_conf in "$ORB_USERCONF_DIR"/shell_config/*.sh; do
+    [ -f "$_orb_conf" ] && . "$_orb_conf"
+done
+unset _orb_conf

@@ -145,14 +145,57 @@ function backup_file_if_new_content {
     fi
 }
 
+function inject_orb_profile {
+    # Inject orb_profile source line into a shell rc file
+    # Usage: inject_orb_profile <rcfile>
+    local rcfile="$1"
+    local source_line='. ~/userconf/orb_profile'
+
+    # Skip if file doesn't exist and we're not creating it
+    if [ ! -f "$rcfile" ]; then
+        echo "Creating $rcfile with orb_profile hook"
+        echo "$source_line" > "$rcfile"
+        return 0
+    fi
+
+    # Check if already injected
+    if grep -qF "$source_line" "$rcfile" 2>/dev/null; then
+        echo "$rcfile already has orb_profile hook"
+        return 0
+    fi
+
+    # Inject at the beginning of the file
+    echo "Injecting orb_profile hook into $rcfile"
+    local temp_file=$(mktemp)
+    {
+        echo "$source_line"
+        echo ""
+        cat "$rcfile"
+    } > "$temp_file"
+    backup_file "$rcfile"
+    mv "$temp_file" "$rcfile"
+}
+
+function install_shell_hooks {
+    echo "Installing orb_profile hooks into shell configuration files..."
+
+    # Bash files
+    inject_orb_profile "$HOME/.bashrc"
+    inject_orb_profile "$HOME/.bash_profile"
+
+    # Zsh files
+    inject_orb_profile "$HOME/.zshrc"
+    inject_orb_profile "$HOME/.zprofile"
+
+    # Generic POSIX profile (used by sh, dash, and as fallback)
+    inject_orb_profile "$HOME/.profile"
+
+    echo "Shell hooks installed. orb_profile will be sourced on shell startup."
+}
+
+# Legacy function name for backwards compatibility
 function install_bash_config_hooks {
-    echo "Configuring the bash login files to include the config directory."
-    backup_file_if_new_content ~/.profile "source ~/.bashrc"
-    echo "source ~/.bashrc" > ~/.profile
-    backup_file_if_new_content ~/.bash_profile "source ~/.profile"
-    echo "source ~/.profile" > ~/.bash_profile
-    backup_file_if_new_content ~/.bashrc "source ~/userconf/shell_config/*"
-    echo 'for f in ~/userconf/shell_config/* ; do source $f ; done' > ~/.bashrc
+    install_shell_hooks
 }
 
 function ensure_path_is_correct {
@@ -176,11 +219,10 @@ function configure_user {
     echo "Configuring user..."
     ensure_path_is_correct
     ensure_requirements
-    # make_notes_dir
+    make_notes_dir
     install_packages
-    # install_not_packages
-    # install_bash_config_hooks
-    # install_dotfiles
+    install_shell_hooks
+    install_dotfiles
     echo "Done configuring user."
 }
 
