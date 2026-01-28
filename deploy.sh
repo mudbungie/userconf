@@ -99,6 +99,11 @@ function make_notes_dir {
     mkdir -p ~/notes/daily
 }
 
+function make_local_bin_dir {
+    echo "Making local binaries directory."
+    mkdir -p ~/.local/bin
+}
+
 function ensure_requirements {
     echo "Ensuring required programs"
     if [[ ! $(which git) ]] ; then
@@ -220,6 +225,7 @@ function configure_user {
     ensure_path_is_correct
     ensure_requirements
     make_notes_dir
+    make_local_bin_dir
     install_packages
     install_shell_hooks
     install_dotfiles

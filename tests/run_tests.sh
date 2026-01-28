@@ -436,6 +436,42 @@ test_ensure_path_is_correct() {
     fi
 }
 
+test_make_local_bin_dir() {
+    echo "=== Testing make_local_bin_dir ==="
+    setup
+
+    source <(sed -n '1,/^if \[\[/p' "$REPO_ROOT/deploy.sh" | head -n -1)
+
+    # Override HOME to test dir so we don't modify actual home
+    local original_home="$HOME"
+    export HOME="$TEST_DIR"
+
+    # Directory should not exist yet
+    if [ -d "$TEST_DIR/.local/bin" ]; then
+        fail "make_local_bin_dir setup" "directory does not exist initially" "directory already exists"
+    else
+        pass "~/.local/bin does not exist initially"
+    fi
+
+    # Run the function
+    make_local_bin_dir >/dev/null
+
+    # Directory should now exist
+    if [ -d "$TEST_DIR/.local/bin" ]; then
+        pass "make_local_bin_dir creates ~/.local/bin"
+    else
+        fail "make_local_bin_dir" "directory created" "directory not created"
+    fi
+
+    # Test idempotence - running again should not fail
+    local result
+    make_local_bin_dir >/dev/null && result=0 || result=$?
+    assert_true $result "make_local_bin_dir is idempotent"
+
+    export HOME="$original_home"
+    teardown
+}
+
 #############################################
 # Test 40_prompt.sh
 #############################################
@@ -636,6 +672,8 @@ echo ""
 test_inject_orb_profile
 echo ""
 test_ensure_path_is_correct
+echo ""
+test_make_local_bin_dir
 echo ""
 test_gen_PS1
 echo ""
