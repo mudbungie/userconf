@@ -202,6 +202,52 @@ function link_dotfile {
     ln -s "$src" "$dest"
 }
 
+# Machine-local git config, the first tenant of D3: untracked, created if
+# absent, never overwritten. dotfiles/gitconfig includes it, so identity lives
+# on the machine instead of shipping to every machine from a tracked file.
+#
+# Seeded, once, from whatever identity this machine already had: install_dotfiles
+# is about to displace the real ~/.gitconfig to .bak, so this is the last moment
+# that identity is still visible to git. After that the file exists and every
+# later deploy returns at the first branch.
+function install_git_local_config {
+    local target="$HOME/.gitconfig_local"
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        echo "$target already exists; leaving it alone."
+        return 0
+    fi
+
+    local name email
+    name=$(git config --global user.name 2>/dev/null)
+    email=$(git config --global user.email 2>/dev/null)
+
+    {
+        echo "# Machine-local git config. Not tracked by userconf: deploy.sh creates"
+        echo "# this file if it is missing and never writes to it again. Included from"
+        echo "# the bottom of dotfiles/gitconfig, so anything here wins."
+        echo "#"
+        echo "# For a per-tree identity, add a section like:"
+        echo "#     [includeIf \"gitdir:~/work/\"]"
+        echo "#         path = ~/.gitconfig_work"
+        echo "[user]"
+        if [ -n "$name" ] && [ -n "$email" ]; then
+            echo "    name = $name"
+            echo "    email = $email"
+        else
+            echo "#    name = Your Name"
+            echo "#    email = you@example.com"
+        fi
+    } > "$target"
+
+    if [ -n "$name" ] && [ -n "$email" ]; then
+        echo "Created $target, carrying over this machine's git identity ($email)."
+    else
+        echo "WARNING: no git identity found on this machine."
+        echo "         Created $target with a commented-out [user] section;"
+        echo "         fill in name and email or git will refuse to commit."
+    fi
+}
+
 function install_dotfiles {
     local repo appconfig filename status=0
     repo=$(pwd)
@@ -221,6 +267,9 @@ function configure_user {
     install_packages
     install_mise
     install_shell_hooks
+    # Before install_dotfiles: it displaces the real ~/.gitconfig, taking this
+    # machine's identity with it.
+    install_git_local_config
     install_dotfiles
     echo "Done configuring user."
 }

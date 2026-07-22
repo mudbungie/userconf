@@ -222,6 +222,45 @@ directory that most machines would leave empty.
 shell-agnostic content. Renaming costs a manual touch on every machine for zero
 behavior; leave it. Revisit only if the shell split makes it actively misleading.
 
+### First tenant: git identity (bl-2a1a)
+
+D3 was written about shell config, and the shape held unchanged for a file no
+shell ever sources. `dotfiles/gitconfig` ships the shared base and ends with
+`[include] path = ~/.gitconfig_local`; the local file is untracked, and its
+presence is again the whole guard — a missing include path is silently ignored
+by git, so no runtime test is needed anywhere.
+
+Two things D3 did not say, both settled here:
+
+1. **`~/.bash_localrc` is created by hand; `~/.gitconfig_local` is created by
+   `deploy.sh`.** That is not a divergence in the mechanism, it is the
+   difference between an optional file and a mandatory one. Absent local shell
+   config means the machine has no local policy, which is the normal case;
+   absent git identity means git refuses to commit. `source_if_exists` can be a
+   silent no-op because nothing is wrong; the git case has something to say, so
+   something has to say it. **Created-if-absent, never written again** — an
+   existing file, even a dangling symlink, ends `install_git_local_config` at
+   its first branch, so the file is written at most once in the life of a
+   machine and a hand edit is safe forever.
+2. **Migration is a read, not a special case.** `install_git_local_config` runs
+   *before* `install_dotfiles`, so `git config --global user.name` still sees
+   the machine's real `~/.gitconfig` — the last moment before D2's symlink
+   displaces it to `.bak`. Found: seed the local file with it. Not found: write
+   a commented-out `[user]` and warn loudly. There is no "first deploy" branch;
+   both paths are the same code reading whatever is there, and the second deploy
+   never reaches either because the file now exists.
+
+**Per-tree identity needs nothing tracked.** `[includeIf "gitdir:~/work/"]` goes
+*inside* the local file, which nests exactly as well as the `~/.orb.d` loop
+above it — a tracked `includeIf` would have to name a machine-specific directory
+in a file that ships to every machine, which is the `90_amazon.sh` defect in
+one line. So the tracked config has one `[include]`, unconditional, and that is
+the whole interface.
+
+**The include must be last.** Later values win in git config, so an include at
+the top would let the shared base override the machine's own settings —
+backwards, and silently so.
+
 ---
 
 ## D4 — Toolchain policy: a rule, not a list
@@ -350,6 +389,19 @@ oversight. If one of these bites, amend the decision above it.
    `reload` verb would be a new verb for a two-word workaround.
 9. **We do not pick a default shell.** userconf supports bash and zsh; `chsh` is
    the user's call per machine.
+10. **`git config --global` writes through the symlink into the tracked file.**
+    Verified: with `~/.gitconfig` linked to `dotfiles/gitconfig`, git resolves
+    the symlink when it takes its lockfile, so `git config --global user.email
+    …` appends a `[user]` section to the *repo's* file. D2 made this sharper
+    than copying did — under copying the edit was merely lost. There is no clean
+    mechanism that prevents it (git offers no "read-only include host"), so it
+    is documented instead: set identity with `git config --file
+    ~/.gitconfig_local`, or by editing that file. **It is caught, not
+    prevented:** `tests/test_gitconfig.sh` asserts the tracked config carries no
+    `[user]` section and no `@` at all, and `pre-commit` runs the suite, so a
+    leaked identity blocks the commit rather than shipping. This is the general
+    hazard of symlinked dotfiles for any app that rewrites its own config file;
+    git is the only current one that does.
 
 ---
 
@@ -379,8 +431,13 @@ oversight. If one of these bites, amend the decision above it.
 - **bl-fb09 (hygiene)** — if the Makefile grows no `uninstall` target, bl-16c8
   deletes `unbackup_file`. README must carry: the tag grammar from D1, the
   `~/.bash_localrc` mechanism from D3, and the provisional status of zsh.
-- **bl-2a1a (git identity)** — unaffected in substance, but note it is the first
-  real tenant of D3: identity is machine-local, untracked, and created-if-absent.
-  Its `git l` / `git b` aliases hardcode
-  `~/userconf/shell_config/70_githelpers.sh`; D1 keeps that path (githelpers is
-  shared, so it stays `70_githelpers.sh` with no tag).
+- **bl-2a1a (git identity) — done.** `[user]` is out of `dotfiles/gitconfig`,
+  which now ends with `[include] path = ~/.gitconfig_local`;
+  `install_git_local_config` creates that file before `install_dotfiles`,
+  seeding it from the machine's existing identity and warning loudly when there
+  is none, and never writes to it a second time. `includeIf` stayed *out* of the
+  tracked file — per-tree identity is a section in the local file. See "First
+  tenant" under D3, and D5 cost 10 for the `git config --global` write-through
+  the symlink now permits. `70_githelpers.sh` did not move, so `git l` / `git b`
+  are unchanged and are exercised end-to-end by `tests/test_gitconfig.sh`
+  against a sandbox `$HOME`.

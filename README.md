@@ -28,7 +28,9 @@ hard-coded because the injected shell hook references it literally. It then:
    reads `.bash_profile` and never `.bashrc`. `~/.zprofile` is redundant with
    `~/.zshrc`, and `~/.profile` is deliberately not hooked, so userconf no
    longer runs in non-interactive `sh`;
-4. symlinks `~/.<name>` to `dotfiles/<name>`. The repo is the only home for the
+4. creates `~/.gitconfig_local` if it is missing (see [Git
+   identity](#git-identity)) — never overwriting one that is already there;
+5. symlinks `~/.<name>` to `dotfiles/<name>`. The repo is the only home for the
    file, so editing `~/.vimrc` edits the tracked file and git sees it. A link
    that is already correct is a no-op, which is what makes re-running safe — no
    hashing, no comparison. A genuine pre-existing file (or a foreign symlink) is
@@ -130,6 +132,63 @@ has been run on a mac.
 `dotfiles/` holds app configs symlinked into `~/.<name>`: `gitconfig`, `pythonrc`,
 `sqliterc`, `vimrc`.
 
+## Git identity
+
+**`dotfiles/gitconfig` contains no name and no email.** It ships only what is
+true of every machine — `[core]`, `[init]`, `[color]`, `[merge]`, `[format]` and
+the aliases — and ends with:
+
+```ini
+[include]
+    path = ~/.gitconfig_local
+```
+
+Identity is a fact about a *machine*, not about this repo, so it lives in
+`~/.gitconfig_local`, which is untracked. That is the same arrangement as
+`~/.bash_localrc` (decision **D3**), and git identity is its first real tenant.
+The include is the **last** section on purpose: later values win in git config,
+so the local file can override anything in the base, not just add to it.
+
+`deploy.sh` creates the file if it is absent and **never** writes to it again —
+an existing file, even a dangling symlink, ends the function at its first
+branch. On first deploy it seeds the file with whatever identity the machine
+already had (read out of `~/.gitconfig` in the moment before that file is
+displaced to `.bak`), so upgrading an existing machine keeps committing as the
+same person with no manual step. On a machine with no identity at all it writes
+a commented-out `[user]` section and says so loudly; git will then ask you who
+you are, which is the honest failure. Nothing here ever invents a placeholder
+name that would quietly end up in a commit.
+
+### Per-tree identity
+
+A second identity — a work tree, a client's repos — is one section in that same
+local file, not a change here:
+
+```ini
+# ~/.gitconfig_local
+[user]
+    name = Your Name
+    email = you@personal.example
+[includeIf "gitdir:~/work/"]
+    path = ~/.gitconfig_work
+```
+
+### Do not use `git config --global` to set identity
+
+`~/.gitconfig` is a symlink into this repo, and `git config --global` **follows
+it** — the write lands in the tracked `dotfiles/gitconfig`, which is exactly the
+condition this arrangement exists to prevent. Edit `~/.gitconfig_local` by hand,
+or name it:
+
+```sh
+git config --file ~/.gitconfig_local user.email you@example.com
+```
+
+If identity does leak into the tracked file, it is caught rather than shipped:
+`tests/test_gitconfig.sh` asserts the tracked config has no `[user]` section and
+no email address in it, and the `pre-commit` hook runs the suite, so the commit
+is rejected.
+
 ## Where machine-specific config goes
 
 **In `~/.bash_localrc`, which is not tracked by this repo.**
@@ -146,6 +205,12 @@ personal box's API keys, a server's `umask` — goes in `~/.bash_localrc` on tha
 machine and nowhere else. Create it by hand; nothing in this repo creates it,
 and its absence is not an error (`source_if_exists` is a no-op on a missing
 file).
+
+The same shape covers non-shell config: `~/.gitconfig_local`, pulled in by an
+`[include]` at the bottom of `dotfiles/gitconfig`, is where git identity lives
+(see [Git identity](#git-identity)). That one *is* created by `deploy.sh` —
+git's own `[include]` cannot warn you that you have no identity, whereas
+`deploy.sh` can, and can carry the old one over.
 
 There is deliberately **no `contexts/` directory, no per-site file in
 `shell_config/`, and no drop-in loop in the core tree.** Tracked config ships to
@@ -192,6 +257,10 @@ each `test_*` function they define. To add a subject, drop in a new
 - `test_hooks.sh` — `inject_rc_line` and the set of rc files hooked.
 - `test_tags.sh` — the filename-tag predicates: which files load in which shell.
 - `test_prompt.sh` — `40_prompt.bash.interactive.sh` and `70_githelpers.sh`.
+- `test_gitconfig.sh` — the shipped `dotfiles/gitconfig` (no identity, base
+  sections and every alias intact, `[include]` last) and
+  `install_git_local_config`. `git l`, `git b` and a real commit are exercised
+  end to end in a sandbox `$HOME`, never the real one.
 - `test_toolchain.sh` — the base package set, `install_mise`, the slot-50 mise
   activation, and `rectify_json`. Package managers, `curl` and `mise` are faked
   into a sandbox PATH, so it touches neither the network nor `$HOME`.
