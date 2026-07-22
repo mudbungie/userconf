@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# Gate: no code file over 300 lines, and the test suite passes.
+# Also run by `bl close` as its delivery gate, so it must pass on a clean tree.
+#
+# Bypass (emergencies only): git commit --no-verify
+#
+
+set -u
+
+MAX_LINES=300
+# git runs pre-commit with cwd at the top of the working tree being committed.
+root=$(git rev-parse --show-toplevel)
+status=0
+
+# Code = shell. Docs (*.md), data (dotfiles/*) and config are exempt.
+is_code() {
+    case "$1" in
+        *.sh | .githooks/* | orb_profile) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Read from the index, not the worktree: the index is what is being committed.
+while IFS= read -r file; do
+    is_code "$file" || continue
+    lines=$(git cat-file -p ":$file" 2>/dev/null | wc -l) || continue
+    if [ "$lines" -gt "$MAX_LINES" ]; then
+        echo "pre-commit: $file is $lines lines (limit $MAX_LINES)" >&2
+        status=1
+    fi
+done < <(git ls-files)
+
+[ "$status" -eq 0 ] || echo "pre-commit: split the file, or commit with --no-verify" >&2
+
+if ! "$root/tests/run_tests.sh" > /tmp/userconf-pre-commit.log 2>&1; then
+    echo "pre-commit: test suite failed (see /tmp/userconf-pre-commit.log)" >&2
+    tail -n 20 /tmp/userconf-pre-commit.log >&2
+    status=1
+fi
+
+exit "$status"

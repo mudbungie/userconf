@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# Auto-push the integration branch to origin whenever it moves.
+#
+# Why reference-transaction and not post-commit/post-merge: `bl close` advances
+# refs/heads/master with git plumbing from outside any checkout, so no commit or
+# merge hook ever fires. reference-transaction fires on every ref update,
+# plumbing included, and therefore also covers ordinary hand merges.
+#
+# Guards:
+#   - only the "committed" state (the update is durable);
+#   - only refs/heads/master (refs/remotes/* and refs/heads/work/* are ignored);
+#   - USERCONF_AUTOPUSH re-entry guard, because the push itself updates
+#     refs/remotes/origin/* and re-enters this hook;
+#   - the push runs detached and its failure is only a warning, so a missing
+#     network or ssh key can never fail the ref transaction (or wedge `bl close`).
+#
+
+set -u
+
+BRANCH=master
+REMOTE=origin
+
+[ "${1:-}" = committed ] || exit 0
+[ -z "${USERCONF_AUTOPUSH:-}" ] || exit 0
+
+# stdin is "<old-value> <new-value> <ref-name>" per updated ref.
+push=
+while read -r _old new ref; do
+    [ "$ref" = "refs/heads/$BRANCH" ] || continue
+    # A deletion (new value all zeroes) is not ours to mirror.
+    case "$new" in *[!0]*) push=1 ;; esac
+done
+
+[ -n "$push" ] || exit 0
+
+# Detach fully: no shared stdout/stderr with the caller, no wait, no exit status.
+(
+    export USERCONF_AUTOPUSH=1
+    if ! out=$(git push --quiet "$REMOTE" "$BRANCH" 2>&1); then
+        echo "auto-push to $REMOTE/$BRANCH failed: $out" >> /tmp/userconf-autopush.log
+    fi
+) </dev/null >/dev/null 2>&1 &
+
+exit 0
