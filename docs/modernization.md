@@ -158,8 +158,8 @@ for files userconf owns whole (`dotfiles/*`).
 
 ## D3 — Contexts: add nothing. `99_local.sh` was always sufficient
 
-**Decision: do NOT add `contexts/`.** This changes bl-171f's deliverable — see
-"Consequences for queued balls".
+**Decision: do NOT add `contexts/`. Ratified.** Documented by bl-171f, which
+created nothing — see "Consequences for queued balls".
 
 The tempting story is that `90_amazon.sh` proves we need a drop-in directory. It
 proves the opposite. Look at what actually went wrong:
@@ -301,12 +301,13 @@ oversight. If one of these bites, amend the decision above it.
 
 ## Consequences for queued balls
 
-- **bl-171f (context drop-ins) — premise invalidated.** Do not create
-  `contexts/`. Per D3, the deliverable becomes documentation-only: state in
-  README that machine-local policy goes in `~/.bash_localrc` via
-  `shell_config/99_local.sh`, and record the self-extending `~/.orb.d` pattern as
-  the answer if one machine ever accumulates several policies. Adding nothing is
-  the successful outcome here.
+- **bl-171f (context drop-ins) — premise invalidated; done, documentation-only.**
+  `contexts/` was not created. README gained a "Where machine-specific config
+  goes" section: `~/.bash_localrc` via `shell_config/99_local.sh`, the
+  self-extending `~/.orb.d` loop as the answer if one machine accumulates several
+  policies, and a pointer back to this decision instead of a restatement of it.
+  No directory, flag or load loop was added. Adding nothing was the successful
+  outcome.
 - **bl-e129 (shell split)** — take D1 whole: filename tags, not three trees;
   delete `ORB_SHELL_NAME` rather than making it earn its keep (the tag predicates
   replace it); hook 3 rc files, not 5.

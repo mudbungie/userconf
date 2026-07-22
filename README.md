@@ -87,6 +87,50 @@ has been run on a mac.
 `dotfiles/` holds app configs copied to `~/.<name>`: `gitconfig`, `pythonrc`,
 `sqliterc`, `vimrc`.
 
+## Where machine-specific config goes
+
+**In `~/.bash_localrc`, which is not tracked by this repo.**
+
+`shell_config/99_local.sh` is the last file loaded, and it is two lines:
+
+```sh
+source_if_exists ~/.bash_localrc
+source_if_exists ~/.local/bin/env
+```
+
+So anything true of *one* machine — a work laptop's proxy or PATH policy, a
+personal box's API keys, a server's `umask` — goes in `~/.bash_localrc` on that
+machine and nowhere else. Create it by hand; nothing in this repo creates it,
+and its absence is not an error (`source_if_exists` is a no-op on a missing
+file).
+
+There is deliberately **no `contexts/` directory, no per-site file in
+`shell_config/`, and no drop-in loop in the core tree.** Tracked config ships to
+every machine, so a tracked per-site file has to test at runtime whether it is
+on the right machine (`hostname -f | grep -q …`) and that test then runs on
+every single shell start. An untracked file needs no such test: **its presence
+*is* the guard.** Deleting it is deleting one file on one machine, not editing
+code that everyone else pulls. The full argument, including the `90_amazon.sh`
+history that motivated it, is decision **D3** in
+[`docs/modernization.md`](docs/modernization.md).
+
+### If one machine accumulates several unrelated policies
+
+Do not ask this repo for a directory. Add the loop to your own local file:
+
+```sh
+# ~/.bash_localrc
+for f in ~/.orb.d/*.sh; do . "$f"; done
+```
+
+Now that machine has its own drop-in directory, built by the person who needed
+it, and the core tree is unchanged. The escape hatch extends itself.
+
+The trade-off is stated and accepted: local files are outside git, so they are
+not backed up and drift between machines (D5, cost 2). If a setting is true on
+*every* machine, it is not machine-local — it belongs in a numbered slot in
+`shell_config/`.
+
 ## Tests
 
 ```sh
