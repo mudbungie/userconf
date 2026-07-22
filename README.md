@@ -18,8 +18,9 @@ make hooks       # required once per clone (see Git hooks)
 hard-coded because the injected shell hook references it literally. It then:
 
 1. creates `~/notes/daily` and `~/.local/bin`;
-2. installs `vim wget curl python3 git jq` with whatever package manager exists
-   (`yum`/`dnf`/`apt`/`brew`);
+2. installs `git curl vim jq python3` with whatever package manager exists
+   (`yum`/`dnf`/`apt`/`brew`), and then `mise` (see [Language
+   runtimes](#language-runtimes));
 3. injects three rc hooks, idempotently: `. ~/userconf/orb_profile` at the top
    of `~/.bashrc` and `~/.zshrc`, and `[ -f ~/.bashrc ] && . ~/.bashrc` at the
    top of `~/.bash_profile`. `.bash_profile` is a **bridge, not a second
@@ -34,6 +35,43 @@ hard-coded because the injected shell hook references it literally. It then:
    moved to `<file>.bak` first, and if `<file>.bak` is already there deploy
    **refuses that one file and reports it**: the existing `.bak` is the true
    original. There is no `.bak.bak` chain, by construction.
+
+## What gets installed, and why
+
+The base set is `git curl vim jq python3`, and it is the output of a rule rather
+than a list of favourites. A program belongs here if either:
+
+1. **you cannot clone or repair this repo without it** — `git`, `curl`, `vim`; or
+2. **a tracked file in this repo calls it** — `jq` (`rectify_json`,
+   `env_assume_role`), `python3` (`dotfiles/pythonrc`). `column` and `less`
+   (`70_githelpers.sh`) qualify too and are already base system everywhere.
+
+Everything else is a per-machine preference and is installed per machine, the
+same way machine-specific config lives in `~/.bash_localrc` and not here.
+`wget` was dropped because `curl` is already required and covers it; `ripgrep`,
+`fzf`, `direnv` and `tmux` are not here because no tracked file calls them. If a
+future slot adds config that calls `fzf`, `fzf` joins by rule 2 — that is the
+point of having a rule. The argument in full is decision **D4** in
+[`docs/modernization.md`](docs/modernization.md).
+
+## Language runtimes
+
+`mise` is the one version manager, covering node and python both. It replaced
+nvm (node only, and `nvm.sh` cost ~100ms of sourcing on *every* shell start) and
+Poetry (python only) together. Slot 50 is now a single `eval` of a generated
+activation snippet, per shell, interactive only.
+
+`deploy.sh` installs it if it is missing, from the vendor installer at
+`https://mise.run` — no distro carries it — into `~/.local/bin`, which is
+already on PATH. It is downloaded whole and then run, not `curl | sh`: a
+pipeline reports the exit status of `sh`, so a truncated download would execute
+as a partial script and still report success. An already-present `mise` (from
+brew, or from the last deploy) is left alone; it updates itself with
+`mise self-update`.
+
+On a machine without mise the slot is a **silent no-op** — `command -v mise`
+fails, nothing is eval'd, and the shell starts normally. Nothing else in this
+repo depends on it.
 
 ## How the shell config loads
 
@@ -76,8 +114,8 @@ adding zsh support for a slot is one new file and nothing else.
 | `30_history.zsh.interactive.sh` | The same intent in zsh's own `setopt`s and `SAVEHIST`. |
 | `40_prompt.bash.interactive.sh` | `gen_PS1` in bash prompt escapes, and the `PS1` it installs. |
 | `40_prompt.zsh.interactive.sh` | `gen_PS1` in zsh prompt escapes. |
-| `50_nvm.sh` | Loads nvm if present. |
-| `50_nvm.bash.interactive.sh` | nvm's bash-only completion. |
+| `50_mise.bash.interactive.sh` | `eval "$(mise activate bash)"`, if mise is installed. |
+| `50_mise.zsh.interactive.sh` | The same for zsh. |
 | `60_aliases.interactive.sh` | Aliases and small command wrappers. |
 | `70_githelpers.sh` | Git log formatting helpers (`pretty_git_format`) and git aliases' backing functions. Untagged and un-renamed on purpose: `dotfiles/gitconfig` sources this exact path from the `git l` / `git b` aliases, under whatever shell git picks. |
 | `99_local.sh` | Last word: sources `~/.bash_localrc` and `~/.local/bin/env` if they exist. Machine-specific settings go there, not in this repo. |
@@ -154,6 +192,9 @@ each `test_*` function they define. To add a subject, drop in a new
 - `test_hooks.sh` — `inject_rc_line` and the set of rc files hooked.
 - `test_tags.sh` — the filename-tag predicates: which files load in which shell.
 - `test_prompt.sh` — `40_prompt.bash.interactive.sh` and `70_githelpers.sh`.
+- `test_toolchain.sh` — the base package set, `install_mise`, the slot-50 mise
+  activation, and `rectify_json`. Package managers, `curl` and `mise` are faked
+  into a sandbox PATH, so it touches neither the network nor `$HOME`.
 
 `make lint` runs `bash -n` on everything, and `shellcheck` **only if it is
 installed** — shellcheck is an optional dependency and is not required for

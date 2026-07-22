@@ -264,7 +264,47 @@ so the collapse was not duplicated per shell.
 `command -v bl` and `command -v claude` so a machine without them is silent. It
 does not drag `claude` or `bl` into the base install — they are installed by
 their own tooling. `gnome-terminal` stays hardcoded until a second desktop
-actually exists (see D5, cost 6).
+actually exists (see D5, cost 6). *Split out of bl-3059 and not implemented
+here:* those changes are still uncommitted in the working tree, and this repo
+auto-pushes on delivery, so committing them is the user's call, not an agent's.
+The move is now its own ball, blocked on that approval.
+
+### As shipped by bl-3059
+
+The rule was re-derived against the tree rather than taken on trust, and it
+holds: `git curl vim jq python3`, `wget` out (nothing calls it), and
+ripgrep/fzf/direnv/tmux out (nothing calls them). Three things the design did
+not anticipate:
+
+1. **`sponge` was a rule-2 hit nobody had counted.** `rectify_json` in
+   `00_functions.sh` called moreutils' `sponge` to absorb the pipe before
+   writing back — a tracked file calling a tool that is neither base system nor
+   in the install set. The rule left two answers: add `moreutils`, or stop
+   calling it. **Taken: stop calling it.** A sibling temp file does the same job
+   (`jq . "$f" > "$f.rectify.$$" && mv`), and jq now runs once instead of twice,
+   so a parse failure leaves the original untouched by construction. Subtracting
+   a dependency beats adding a package, and the base set stays at five.
+2. **Slot 50 is two files, not one.** `mise activate` takes the shell name, and
+   the filename tag is this repo's only shell predicate — a single file would
+   have had to re-derive the running shell in its body, which is exactly what
+   D1 abolished. `50_mise.bash.interactive.sh` and `50_mise.zsh.interactive.sh`
+   are one line of code each and never load together, so the "files at one slot
+   must be independent" rule is satisfied trivially.
+3. **`curl … | sh` cannot detect a failed download.** A pipeline reports the
+   exit status of `sh`, and `sh` given an empty stdin exits 0. `install_mise`
+   therefore downloads to a temp file and then runs it, so a truncated or
+   refused download is reported instead of half-executed. (The old
+   `install_not_packages` had this defect twice over; it is deleted.)
+
+Bootstrap: no distro ships mise, so `install_mise` uses the vendor installer at
+`https://mise.run`, guarded by `command -v mise` — an existing install (brew, or
+a previous deploy) is left alone, which is the whole of its idempotence. On a
+machine without mise the slot-50 files are a silent no-op; nothing else in the
+repo depends on it. **mise is not installed on the development box**, so
+`tests/test_toolchain.sh::test_real_mise_activation` skips with a loud `SKIP`
+naming it — the same treatment zsh gets under D5 cost 4. What the suite does
+verify without it: the slot is a no-op when mise is absent, and evals exactly
+`mise activate <shell>` when a fake mise is on PATH.
 
 ---
 
@@ -330,9 +370,12 @@ oversight. If one of these bites, amend the decision above it.
 - **bl-16c8 (symlink deploy)** — D2 answers its open question: rc-file injection
   stays injection. The rc-file *set* (5 → 3) is bl-e129's change, not this one;
   do not both edit `install_shell_hooks`.
-- **bl-3059 (toolchain)** — D4 gives the rule; the base set lands as
-  `git curl vim jq python3` (wget out), nvm → mise, Poetry out,
-  `install_not_packages` deleted, agent aliases to `80_agents.interactive.sh`.
+- **bl-3059 (toolchain) — done.** The base set landed as `git curl vim jq
+  python3` (wget out), nvm → mise at slot 50 (two files, one per shell), Poetry
+  out, `install_not_packages` deleted, and `rectify_json`'s undeclared `sponge`
+  dependency removed rather than packaged. The agent aliases did **not** move:
+  they are uncommitted working-tree changes and delivery auto-pushes, so that
+  half was split into its own ball pending the user's approval.
 - **bl-fb09 (hygiene)** — if the Makefile grows no `uninstall` target, bl-16c8
   deletes `unbackup_file`. README must carry: the tag grammar from D1, the
   `~/.bash_localrc` mechanism from D3, and the provisional status of zsh.

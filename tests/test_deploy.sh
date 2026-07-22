@@ -101,13 +101,13 @@ test_install_packages_detection() {
 
     local output
     output=$( PATH="$bin"; install_packages 2>&1 )
-    assert_contains "$output" "apt install -y vim" "install_packages keeps the first manager found (apt over brew)"
+    assert_contains "$output" "apt install -y git" "install_packages keeps the first manager found (apt over brew)"
     assert_not_contains "$output" "brew install" "install_packages does not fall through to a later manager"
 
     # brew has no -y flag and must not be run under sudo.
     rm "$bin/apt"
     output=$( PATH="$bin"; install_packages 2>&1 )
-    assert_contains "$output" "brew install vim" "brew is invoked without -y"
+    assert_contains "$output" "brew install git" "brew is invoked without -y"
     assert_not_contains "$output" "brew install -y" "brew is not given the invalid -y flag"
 
     teardown

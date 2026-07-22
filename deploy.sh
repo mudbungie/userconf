@@ -56,8 +56,13 @@ function install_packages {
         return 2
     fi
 
-    # Programs that I want installed.
-    local programs="vim wget curl python3 git jq"
+    # The base set is a rule, not a taste: a program is here only if you cannot
+    # clone or repair this repo without it (git, curl, vim), or a tracked file
+    # in this repo calls it (jq in rectify_json, python3 in dotfiles/pythonrc).
+    # Everything merely nice - ripgrep, fzf, direnv, tmux - is a per-machine
+    # preference and belongs in that machine's own install, not here. See D4 in
+    # docs/modernization.md.
+    local programs="git curl vim jq python3"
     echo "Installing the following programs: $programs."
 
     # brew has no -y and refuses to run as root; everything else wants both.
@@ -79,10 +84,31 @@ function install_packages {
     fi
 }
 
-function install_not_packages {
-    # Node and python and stuff
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
-    curl -sSL https://install.python-poetry.org | python3 -
+# One version manager for every language runtime, replacing nvm (node only,
+# ~100ms of sourcing per shell) and Poetry (python only). mise is not carried by
+# yum/dnf/apt, so the vendor installer is the portable path; it drops a single
+# binary in ~/.local/bin - a directory make_local_bin_dir creates and
+# 20_set_variables.sh already puts on PATH.
+# Idempotence is the presence check: an already-installed mise (from brew, or
+# from the last deploy) is left alone and updates itself with `mise self-update`.
+function install_mise {
+    if command -v mise >/dev/null; then
+        echo "mise already installed."
+        return 0
+    fi
+    echo "Installing mise (node/python version manager)."
+    # Downloaded whole, then run - not `curl | sh`. A pipeline reports the exit
+    # status of `sh`, so a failed or truncated download would run as a partial
+    # script and still look like a success.
+    local script
+    script=$(mktemp) || return 1
+    if curl -fsSL https://mise.run > "$script" && sh "$script"; then
+        rm -f "$script"
+        return 0
+    fi
+    rm -f "$script"
+    echo "mise installation failed; shells will start without it."
+    return 1
 }
 
 function make_notes_dir {
@@ -193,6 +219,7 @@ function configure_user {
     make_notes_dir
     make_local_bin_dir
     install_packages
+    install_mise
     install_shell_hooks
     install_dotfiles
     echo "Done configuring user."

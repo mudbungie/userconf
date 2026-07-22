@@ -13,18 +13,22 @@ function retry {
     done
 }
 
-# pipe it into jq and back out
+# Reformat a JSON file in place. It used to need moreutils' `sponge` to absorb
+# the pipe before writing back; a sibling temp file does the same job with no
+# second package, and the base install set (D4) stays down to tools you cannot
+# bootstrap without. jq is run once, not twice: a parse failure leaves the
+# original untouched because the temp file is what got the garbage.
 function rectify_json {
     if ! command -v jq >/dev/null; then
         echo "jq not installed"
         return 1
     fi
-    if ! command -v sponge >/dev/null; then
-        echo "sponge not installed"
-        return 2
-    fi
-    if [[ $(jq . $1) ]]; then
-        jq . $1 |sponge $1
+    local tmp="$1.rectify.$$"
+    if jq . "$1" > "$tmp"; then
+        mv "$tmp" "$1"
+    else
+        rm -f "$tmp"
+        return 1
     fi
 }
 
