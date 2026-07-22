@@ -1,32 +1,19 @@
 #!/bin/bash
 
-function find_best_hash_function {
-    declare -a hash_functions=("sha512sum" "sha512" "sha256sum" "sha256"
-        "sha1sum" "sha1" "shasum" "md5sum" "md5")
-    for hash_function in "${hash_functions[@]}"; do
-        if command -v "$hash_function" >/dev/null; then
-            echo "$hash_function"
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Move the file to .bak, recursively, so that you never squash.
+# Displace a pre-existing real file so a symlink can take its place. There is
+# no recursion and no chain: an existing .bak is the true original, so a second
+# backup refuses rather than overwriting it. Re-running deploy therefore cannot
+# accumulate .bak.bak.bak.
 function backup_file {
-    if [ -e "$1" ]; then 
-        backup_file "$1.bak"
-        echo "Backing up $1 to $1.bak"
-        mv  "$1" "$1.bak"
+    if [ ! -e "$1" ] && [ ! -L "$1" ]; then
+        return 0
     fi
-}
-
-function unbackup_file {
-    if [ -e "$1.bak" ] ; then
-        echo "Restoring $1.bak to $1"
-        mv "$1.bak" "$1"
-        unbackup_file "$1.bak"
+    if [ -e "$1.bak" ] || [ -L "$1.bak" ]; then
+        echo "Refusing to back up $1: $1.bak already exists."
+        return 1
     fi
+    echo "Backing up $1 to $1.bak"
+    mv "$1" "$1.bak"
 }
 
 function kill_bell {
@@ -116,44 +103,6 @@ function ensure_requirements {
     fi
 }
 
-function replace_file_if_new {
-    conf=$1
-    hash_function=$(find_best_hash_function)
-    if [ -f "$HOME/$conf" ]; then
-        original_hash=$($hash_function $HOME/$conf | cut -d ' ' -f 1)
-        echo "Original file hash: $original_hash"
-        new_hash=$($hash_function $conf | cut -d ' ' -f 1)
-        echo "New file hash: $new_hash"
-        if [ $original_hash == $new_hash ]; then
-            echo "$HOME/$conf up to date, leaving unchanged."
-        else
-            echo "Installing $HOME/$conf"
-            backup_file "$HOME/$conf"
-            cp "$conf" "$HOME/$conf"
-        fi
-    else
-        echo "Installing $HOME/$conf"
-        cp "$conf" "$HOME/$conf"
-    fi
-
-}
-
-function backup_file_if_new_content {
-    file=$1
-    content=$2
-
-    # If file doesn't exist, nothing to back up
-    [ -f "$file" ] || return 0
-
-    file_content=$(cat "$file")
-    hash_function=$(find_best_hash_function)
-    new_hash=$(echo "$content" | $hash_function | cut -d ' ' -f 1)
-    old_hash=$(echo "$file_content" | $hash_function | cut -d ' ' -f 1)
-    if [ "$new_hash" != "$old_hash" ] ; then
-        backup_file "$file"
-    fi
-}
-
 function inject_rc_line {
     # Idempotently put a line at the top of a shell rc file, creating the file
     # if it does not exist. userconf owns its line, not the file: rc files are
@@ -212,12 +161,29 @@ function ensure_path_is_correct {
     fi
 }
 
+# Link, do not copy: the repo stays the only home for the fact, so an edit made
+# through ~/.vimrc lands in the repo where git can see it. Idempotence is
+# structural - a correct link is already the answer, so there is nothing to
+# compare and nothing to hash.
+function link_dotfile {
+    local src="$1" dest="$2"
+    if [ "$(readlink "$dest")" = "$src" ]; then
+        echo "$dest already links to $src"
+        return 0
+    fi
+    backup_file "$dest" || return 1
+    echo "Linking $dest -> $src"
+    ln -s "$src" "$dest"
+}
+
 function install_dotfiles {
+    local repo appconfig filename status=0
+    repo=$(pwd)
     for appconfig in dotfiles/*; do
         filename=${appconfig##*/}
-        backup_file "$HOME/.$filename"
-        cp "$appconfig" "$HOME/.$filename"
+        link_dotfile "$repo/$appconfig" "$HOME/.$filename" || status=1
     done
+    return $status
 }
 
 function configure_user {

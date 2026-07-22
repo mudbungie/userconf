@@ -17,7 +17,10 @@ to this repo.
 - Machine-specific settings do not belong in this repo. `99_local.sh` sources
   `~/.bash_localrc`; that is where they go.
 - `deploy.sh` must stay idempotent — it is re-run on every update, not just at
-  bootstrap. Anything it writes into `$HOME` goes through `backup_file` first.
+  bootstrap. `dotfiles/<name>` is *symlinked* to `$HOME/.<name>`, so idempotence
+  is structural: a correct link is already the answer. Nothing is copied and
+  nothing is hashed. A real file in the way is moved to `.bak` once by
+  `backup_file`, which refuses rather than chaining if a `.bak` already exists.
 - The clone path `~/userconf` is hard-coded on purpose (the injected rc line is
   literal). Do not parameterize it.
 

@@ -146,6 +146,20 @@ nothing to compare and nothing to hash.
   has no `uninstall` target, delete it; do not keep a restore half without a
   remove half.
 
+*As shipped by bl-16c8:* all four deletions stand — the Makefile grew no
+`uninstall` target, so `unbackup_file` went with the hash ladder. Rules 1–4 live
+in two functions, not one: `backup_file` is rules 3 and 4 (displace once, refuse
+a second time) and `link_dotfile` is rules 1 and 2 (`readlink` equality is the
+whole idempotence check). `install_dotfiles` is now just the loop, and it
+reports a refusal per file rather than aborting the deploy — one squatting
+`.bak` must not stop the other dotfiles from linking.
+
+*One thing D2 did not anticipate:* `inject_rc_line` (bl-e129's) also calls
+`backup_file`, so the new refusal reaches the rc-file path too. That is
+harmless — injection rewrites the file from its own full contents, so the backup
+is belt-and-braces there and a refusal loses nothing — but it means the
+rc-file's `.bak` is likewise written at most once, ever.
+
 ### `orb_profile` injection stays injection
 
 Do **not** symlink rc files. `~/.bashrc` and `~/.zshrc` are shared territory —

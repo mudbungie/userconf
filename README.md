@@ -2,8 +2,8 @@
 
 Personal shell and dotfile configuration, plus the bootstrapper that installs it
 onto a new machine. One clone at `~/userconf` is the single source of truth; the
-files in `$HOME` are hooks into it, not copies of it (except the dotfiles, which
-git cannot symlink safely across platforms and so are copied).
+files in `$HOME` are hooks into it, never copies of it: rc files get one
+injected line, and dotfiles get a symlink.
 
 ## Bootstrapping a machine
 
@@ -27,8 +27,13 @@ hard-coded because the injected shell hook references it literally. It then:
    reads `.bash_profile` and never `.bashrc`. `~/.zprofile` is redundant with
    `~/.zshrc`, and `~/.profile` is deliberately not hooked, so userconf no
    longer runs in non-interactive `sh`;
-4. copies `dotfiles/<name>` to `~/.<name>`, backing up anything it displaces to
-   `<file>.bak` (recursively, so nothing is ever squashed).
+4. symlinks `~/.<name>` to `dotfiles/<name>`. The repo is the only home for the
+   file, so editing `~/.vimrc` edits the tracked file and git sees it. A link
+   that is already correct is a no-op, which is what makes re-running safe — no
+   hashing, no comparison. A genuine pre-existing file (or a foreign symlink) is
+   moved to `<file>.bak` first, and if `<file>.bak` is already there deploy
+   **refuses that one file and reports it**: the existing `.bak` is the true
+   original. There is no `.bak.bak` chain, by construction.
 
 ## How the shell config loads
 
@@ -84,7 +89,7 @@ development machine, so `tests/test_tags.sh` skips its zsh test with a loud
 `SKIP` rather than pretending to pass. Treat zsh support as untested until it
 has been run on a mac.
 
-`dotfiles/` holds app configs copied to `~/.<name>`: `gitconfig`, `pythonrc`,
+`dotfiles/` holds app configs symlinked into `~/.<name>`: `gitconfig`, `pythonrc`,
 `sqliterc`, `vimrc`.
 
 ## Where machine-specific config goes
