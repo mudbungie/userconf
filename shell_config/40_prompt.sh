@@ -72,4 +72,6 @@ function gen_PS1 {
     return 0
 }
 
-export PS1=$(gen_PS1)
+# Not exported: PS1 is per-shell, and exporting it leaks the escape sequences
+# into every child process's environment.
+PS1=$(gen_PS1)

@@ -43,6 +43,94 @@ test_prepend_to_path() {
     teardown
 }
 
+test_path_membership_is_exact() {
+    echo "=== Testing add_to_path segment matching ==="
+    setup
+
+    local original_path="$PATH"
+
+    # A substring of an existing entry is not a member: /usr/local/bin is on
+    # PATH, /usr/local is not, and the old unanchored grep matched it anyway.
+    export PATH="/usr/local/bin:/usr/bin"
+    add_to_path "/usr/local"
+    assert_equals "/usr/local/bin:/usr/bin:/usr/local" "$PATH" \
+        "add_to_path does not treat a substring of an entry as present"
+
+    # Regex metacharacters are data, not pattern.
+    export PATH="/opt/a+b"
+    add_to_path "/opt/aab"
+    assert_equals "/opt/a+b:/opt/aab" "$PATH" \
+        "add_to_path does not interpret the argument as a regex"
+
+    # Exact segments, first/middle/last, are all recognised as present.
+    export PATH="/one:/two:/three"
+    add_to_path "/one"
+    prepend_to_path "/two"
+    add_to_path "/three"
+    assert_equals "/one:/two:/three" "$PATH" \
+        "exact segments in any position are detected as already present"
+
+    export PATH="$original_path"
+    teardown
+}
+
+test_retry_is_bounded() {
+    echo "=== Testing retry ==="
+    setup
+
+    local attempts=0
+    local -a slept=()
+    # Stub sleep so the backoff is observable and the suite stays fast.
+    sleep() { slept+=("$1"); }
+    always_fails() { attempts=$((attempts + 1)); return 1; }
+    fails_once() { attempts=$((attempts + 1)); [ "$attempts" -ge 2 ]; }
+
+    local result
+    ORB_RETRY_MAX=3 retry always_fails 2>/dev/null && result=0 || result=$?
+    assert_equals "1" "$result" "retry returns failure once it gives up"
+    assert_equals "3" "$attempts" "retry stops after ORB_RETRY_MAX attempts"
+    assert_equals "1 2" "${slept[*]}" "retry backs off exponentially between attempts"
+
+    attempts=0
+    slept=()
+    ORB_RETRY_MAX=3 retry fails_once && result=0 || result=$?
+    assert_equals "0" "$result" "retry succeeds when the command eventually works"
+    assert_equals "2" "$attempts" "retry stops retrying on success"
+
+    unset -f sleep always_fails fails_once
+    teardown
+}
+
+test_xfce_helpers_removed() {
+    echo "=== Testing xfce4 dead code removal ==="
+    setup
+
+    local fn
+    for fn in set_xfconf_value set_wm_shortcut set_command_shortcut set_xfce4_shortcuts; do
+        if declare -F "$fn" >/dev/null; then
+            fail "xfce4 dead code" "$fn absent" "$fn still defined"
+        else
+            pass "dead xfce4 helper removed: $fn"
+        fi
+    done
+
+    teardown
+}
+
+test_no_which_usage() {
+    echo "=== Testing that command -v is used instead of which ==="
+
+    local file hits
+    for file in deploy.sh shell_config/00_functions.sh; do
+        hits=$(grep -nE '(^|[^-[:alnum:]_/])which ' "$REPO_ROOT/$file" || true)
+        if [ -n "$hits" ]; then
+            fail "$file uses which" "command -v" "$hits"
+        else
+            pass "$file uses command -v, not which"
+        fi
+    done
+}
+
 test_print_path() {
     echo "=== Testing print_path ==="
     setup
@@ -171,6 +259,20 @@ test_mac_compliant_inline_sed() {
     local result
     result=$(cat "$TEST_DIR/sed_test.txt")
     assert_equals "hello universe" "$result" "mac_compliant_inline_sed performs replacement"
+
+    if [ -e "$TEST_DIR/sed_test.txt.bak" ]; then
+        fail "mac_compliant_inline_sed" "no .bak dropping" ".bak file left behind"
+    else
+        pass "mac_compliant_inline_sed leaves no .bak dropping"
+    fi
+
+    # The Darwin branch cannot run here, so assert its text: BSD sed needs an
+    # explicit empty suffix, otherwise it writes a .bak next to every file.
+    local darwin_branch
+    darwin_branch=$(sed -n "/function mac_compliant_inline_sed/,/^}/p" \
+        "$REPO_ROOT/shell_config/00_functions.sh")
+    assert_contains "$darwin_branch" "sed -i '' " \
+        "Darwin branch passes an empty backup suffix"
 
     teardown
 }

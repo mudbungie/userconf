@@ -4,9 +4,8 @@ function find_best_hash_function {
     declare -a hash_functions=("sha512sum" "sha512" "sha256sum" "sha256"
         "sha1sum" "sha1" "shasum" "md5sum" "md5")
     for hash_function in "${hash_functions[@]}"; do
-        which $hash_function>/dev/null
-        if [ $? -eq 0 ]; then
-            echo $hash_function
+        if command -v "$hash_function" >/dev/null; then
+            echo "$hash_function"
             return 0
         fi
     done
@@ -55,31 +54,36 @@ function kill_bell {
 }
 
 function install_packages {
-    # Test to see what package managers are available.
-    declare -a installers=("yum" "dnf" "apt" "brew")
-    for installer in "${installers[@]}"; do
-        if which $installer; then
+    # First package manager found wins.
+    local pkgmgr= installer
+    for installer in yum dnf apt brew; do
+        if command -v "$installer" >/dev/null; then
             pkgmgr=$installer
             echo "Package manager $installer detected."
+            break
         fi
     done
 
-    if [ !$pkgmgr ]; then
+    if [ -z "$pkgmgr" ]; then
         echo "No package manager detected."
         return 2
     fi
 
     # Programs that I want installed.
-    programs="vim wget curl python3 git jq"
+    local programs="vim wget curl python3 git jq"
     echo "Installing the following programs: $programs."
-    # If root, don't use sudo.
-    if [ $(id -u) != 0 ]; then
-        SUDO=sudo
+
+    # brew has no -y and refuses to run as root; everything else wants both.
+    local -a cmd
+    if [ "$pkgmgr" = brew ]; then
+        cmd=(brew install $programs)
+    elif [ "$(id -u)" != 0 ]; then
+        cmd=(sudo "$pkgmgr" install -y $programs)
     else
-        unset SUDO
+        cmd=("$pkgmgr" install -y $programs)
     fi
 
-    if $SUDO $pkgmgr install -y $programs; then
+    if "${cmd[@]}"; then
         echo "Installation successful."
         return 0
     else
@@ -106,7 +110,7 @@ function make_local_bin_dir {
 
 function ensure_requirements {
     echo "Ensuring required programs"
-    if [[ ! $(which git) ]] ; then
+    if ! command -v git >/dev/null ; then
         echo "git not installed"
         exit 1
     fi
@@ -214,9 +218,9 @@ function ensure_path_is_correct {
 
 function install_dotfiles {
     for appconfig in dotfiles/*; do
-        filename=$(echo $appconfig | cut -d '/' -f 2)
-        backup_file "~/.$filename"
-        cp "$HOME/userconf/dotfiles/$filename" "$HOME/.$filename"
+        filename=${appconfig##*/}
+        backup_file "$HOME/.$filename"
+        cp "$appconfig" "$HOME/.$filename"
     done
 }
 

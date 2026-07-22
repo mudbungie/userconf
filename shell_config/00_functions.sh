@@ -1,19 +1,25 @@
-# Keep doing it until it works.
+# Keep doing it until it works, but not forever: at most ORB_RETRY_MAX
+# attempts, with exponential backoff between them.
 function retry {
-    "$@"
-    while [ $? != 0 ]
-    do
-        "$@"
+    local max=${ORB_RETRY_MAX:-5} delay=1 attempt=1
+    until "$@"; do
+        if [ "$attempt" -ge "$max" ]; then
+            echo "retry: giving up on '$*' after $max attempts" >&2
+            return 1
+        fi
+        sleep "$delay"
+        delay=$((delay * 2))
+        attempt=$((attempt + 1))
     done
 }
 
 # pipe it into jq and back out
 function rectify_json {
-    if ! [[ $(which jq) ]]; then
+    if ! command -v jq >/dev/null; then
         echo "jq not installed"
         return 1
     fi
-    if ! [[ $(which sponge) ]]; then
+    if ! command -v sponge >/dev/null; then
         echo "sponge not installed"
         return 2
     fi
@@ -22,19 +28,21 @@ function rectify_json {
     fi
 }
 
-# Non-clobbering path addition.
+# Non-clobbering path addition. Membership is tested on whole ':'-delimited
+# segments, so neither substrings nor regex metacharacters can false-positive.
+function in_path {
+    case ":$PATH:" in
+        *":$1:"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 function add_to_path {
-    pathlines=$(echo PATH|sed 's/:/\n/g') # Split path by lines.
-    if ! echo $PATH |grep -q $1 ; then
-        export PATH="$PATH:$1"
-    fi
+    in_path "$1" || export PATH="$PATH:$1"
 }
 
 function prepend_to_path {
-    pathlines=$(echo PATH|sed 's/:/\n/g') # Split path by lines.
-    if ! echo $PATH |grep -q $1 ; then
-        export PATH="$1:$PATH"
-    fi
+    in_path "$1" || export PATH="$1:$PATH"
 }
 
 function print_path {
@@ -76,55 +84,11 @@ function bash_colors {
     export WHITE=$(echo -en '\033[01;37m')
 }
 
-# xfce4 configurations
-function set_xfconf_value {
-	# set_xfconf_value path value
-	xfconf-query -c xfce4-keyboard-shortcuts -p "$1" -r
-	xfconf-query -c xfce4-keyboard-shortcuts -p "$1" -s "$2" -n -t string
-	return $?
-}
-
-function set_wm_shortcut {
-	# set_wm_shortcut shortcut value
-	set_xfconf_value "/xfwm4/custom/$1" "$2"
-	return $?
-}
-
-function set_command_shortcut {
-	# set_command_shortcut shortcut value
-	set_xfconf_value "/commands/custom/$1" "$2"
-	return $?
-}
-
-function set_xfce4_shortcuts {
-    set_wm_shortcut "<Primary><Super>KP_1" "tile_down_left_key"
-    set_wm_shortcut "<Primary><Super>KP_2" "tile_down_key"
-    set_wm_shortcut "<Primary><Super>KP_3" "tile_down_right_key"
-    set_wm_shortcut "<Primary><Super>KP_4" "tile_left_key"
-    set_wm_shortcut "<Primary><Super>KP_5" "maximize_window_key"
-    set_wm_shortcut "<Primary><Super>KP_6" "tile_right_key"
-    set_wm_shortcut "<Primary><Super>KP_7" "tile_up_left_key"
-    set_wm_shortcut "<Primary><Super>KP_8" "tile_up_key"
-    set_wm_shortcut "<Primary><Super>KP_9" "tile_up_right_key"
-    set_wm_shortcut "<Primary><Shift>w" "move_window_workspace_1_key"
-    set_wm_shortcut "<Primary><Shift>e" "move_window_workspace_2_key"
-    set_wm_shortcut "<Primary><Shift>s" "move_window_workspace_3_key"
-    set_wm_shortcut "<Primary><Shift>d" "move_window_workspace_4_key"
-    set_wm_shortcut "<Super>w" "workspace_1_key"
-    set_wm_shortcut "<Super>e" "workspace_2_key"
-    set_wm_shortcut "<Super>s" "workspace_3_key"
-    set_wm_shortcut "<Super>d" "workspace_4_key"
-
-    set_command_shortcut "<Primary><Alt>l" "xflock4"
-    set_command_shortcut "<Super>l" "xflock4"
-    set_command_shortcut "<Super>t" "xfce4-terminal"
-}
-
 function mac_compliant_inline_sed {
-    # ffs mac has to have their own sed flags
-    if $(uname |grep -q "Darwin")
-    then 
-        sed -i .bak "$1" "$2"
+    # BSD sed requires an explicit (here empty) backup suffix argument to -i;
+    # GNU sed requires it to be absent. Neither leaves a .bak behind.
+    if [ "$(uname)" = Darwin ]; then
+        sed -i '' "$1" "$2"
     else
         sed -i "$1" "$2"
     fi
