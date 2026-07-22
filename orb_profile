@@ -1,6 +1,11 @@
 # orb_profile - Central shell configuration entrypoint
-# This file should be sourced from shell rc files (.bashrc, .zshrc, etc.)
+# This file should be sourced from shell rc files (.bashrc, .zshrc)
 # It loads all configuration from ~/userconf/shell_config/
+#
+# Config files are named NN_name[.tag][.tag].sh. A file is sourced only if
+# EVERY tag in its name holds in the shell running right now; no tag means
+# always. The tag vocabulary is closed: bash, zsh, interactive. An unknown tag
+# never holds, so a typo fails closed instead of leaking bash config into zsh.
 
 # Idempotence guard - prevent double-sourcing within one shell.
 # Deliberately NOT exported: an exported guard is inherited by child shells,
@@ -18,12 +23,41 @@ if [ ! -d "$ORB_USERCONF_DIR/shell_config" ]; then
     return 1
 fi
 
-# Detect current shell for any shell-specific handling
-ORB_SHELL_NAME="${ORB_SHELL_NAME:-$(basename "$SHELL")}"
+# Does one tag hold in this shell? The running shell is identified by
+# $BASH_VERSION / $ZSH_VERSION - never by $SHELL, which names the *login*
+# shell and so is wrong in exactly the case that matters (bash inside zsh).
+_orb_tag_holds() {
+    case $1 in
+        bash) [ -n "$BASH_VERSION" ] ;;
+        zsh) [ -n "$ZSH_VERSION" ] ;;
+        interactive) case $- in *i*) true ;; *) false ;; esac ;;
+        *) false ;;
+    esac
+}
+
+# Do all of a filename's tags hold?
+_orb_tags_hold() {
+    _orb_rest=${1##*/}
+    _orb_rest=${_orb_rest%.sh}
+    case $_orb_rest in
+        *.*) _orb_rest=${_orb_rest#*.} ;;
+        *) return 0 ;;                    # untagged: always
+    esac
+    while : ; do
+        _orb_tag_holds "${_orb_rest%%.*}" || return 1
+        case $_orb_rest in
+            *.*) _orb_rest=${_orb_rest#*.} ;;
+            *) return 0 ;;
+        esac
+    done
+}
 
 # Source all configuration files in order
 # The numeric prefix determines load order (00_, 20_, etc.)
 for _orb_conf in "$ORB_USERCONF_DIR"/shell_config/*.sh; do
-    [ -f "$_orb_conf" ] && . "$_orb_conf"
+    [ -f "$_orb_conf" ] || continue
+    _orb_tags_hold "$_orb_conf" || continue
+    . "$_orb_conf"
 done
-unset _orb_conf
+unset _orb_conf _orb_rest
+unset -f _orb_tag_holds _orb_tags_hold

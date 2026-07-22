@@ -20,8 +20,13 @@ hard-coded because the injected shell hook references it literally. It then:
 1. creates `~/notes/daily` and `~/.local/bin`;
 2. installs `vim wget curl python3 git jq` with whatever package manager exists
    (`yum`/`dnf`/`apt`/`brew`);
-3. injects `. ~/userconf/orb_profile` at the top of `~/.bashrc`,
-   `~/.bash_profile`, `~/.zshrc`, `~/.zprofile` and `~/.profile` (idempotently);
+3. injects three rc hooks, idempotently: `. ~/userconf/orb_profile` at the top
+   of `~/.bashrc` and `~/.zshrc`, and `[ -f ~/.bashrc ] && . ~/.bashrc` at the
+   top of `~/.bash_profile`. `.bash_profile` is a **bridge, not a second
+   entrypoint**: a login bash — which is what every macOS Terminal tab starts —
+   reads `.bash_profile` and never `.bashrc`. `~/.zprofile` is redundant with
+   `~/.zshrc`, and `~/.profile` is deliberately not hooked, so userconf no
+   longer runs in non-interactive `sh`;
 4. copies `dotfiles/<name>` to `~/.<name>`, backing up anything it displaces to
    `<file>.bak` (recursively, so nothing is ever squashed).
 
@@ -31,16 +36,53 @@ hard-coded because the injected shell hook references it literally. It then:
 double-sourcing with `ORB_PROFILE_LOADED`, then sources every
 `shell_config/*.sh` in filename order. The numeric prefix *is* the load order.
 
+### Filename tags
+
+A config file is named:
+
+    NN_name[.tag][.tag].sh
+
+`orb_profile` sources it only if **every** tag in the name holds in the shell
+running right now. No tag means always. The vocabulary is closed:
+
+| tag | holds when |
+| --- | --- |
+| `bash` | `$BASH_VERSION` is set |
+| `zsh` | `$ZSH_VERSION` is set |
+| `interactive` | `$-` contains `i` |
+
+An unknown tag never holds, so a typo fails closed (the file is skipped) rather
+than leaking bash-only config into zsh. The running shell is identified by
+`$BASH_VERSION` / `$ZSH_VERSION` and never by `$SHELL`, which names the *login*
+shell and is therefore wrong in exactly the case that matters: `bash` typed
+inside zsh.
+
+Two files may share a slot (`40_prompt.bash.interactive.sh` and
+`40_prompt.zsh.interactive.sh`). Their order relative to each other is whatever
+the glob gives, so **files at the same slot must not depend on each other**;
+adding zsh support for a slot is one new file and nothing else.
+
 | Slot | Purpose |
 | --- | --- |
-| `00_functions.sh` | Shared shell functions everything else depends on (`add_to_path`, `bash_colors`, `source_if_exists`, `is_git_repo`, …). Must come first. |
-| `20_set_variables.sh` | Environment variables, color settings, bash completion. |
-| `30_history.sh` | History size, dedup, append-on-exit behavior. |
-| `40_prompt.sh` | `gen_PS1` and the prompt it installs. |
-| `50_nvm.sh` | Loads nvm and its completion if present. |
-| `60_aliases.sh` | Aliases and small command wrappers. |
-| `70_githelpers.sh` | Git log formatting helpers (`pretty_git_format`) and git aliases' backing functions. |
+| `00_functions.sh` | Shared shell functions everything else depends on (`add_to_path`, `bash_colors`, `source_if_exists`, `is_git_repo`, `git_branch_prompt`, …). Must come first. |
+| `20_set_variables.sh` | Environment variables, color settings, PATH. |
+| `20_set_variables.bash.interactive.sh` | `shopt` settings and bash completion. |
+| `30_history.bash.interactive.sh` | bash history: sizes, dedup, append-and-reload at each prompt. |
+| `30_history.zsh.interactive.sh` | The same intent in zsh's own `setopt`s and `SAVEHIST`. |
+| `40_prompt.bash.interactive.sh` | `gen_PS1` in bash prompt escapes, and the `PS1` it installs. |
+| `40_prompt.zsh.interactive.sh` | `gen_PS1` in zsh prompt escapes. |
+| `50_nvm.sh` | Loads nvm if present. |
+| `50_nvm.bash.interactive.sh` | nvm's bash-only completion. |
+| `60_aliases.interactive.sh` | Aliases and small command wrappers. |
+| `70_githelpers.sh` | Git log formatting helpers (`pretty_git_format`) and git aliases' backing functions. Untagged and un-renamed on purpose: `dotfiles/gitconfig` sources this exact path from the `git l` / `git b` aliases, under whatever shell git picks. |
 | `99_local.sh` | Last word: sources `~/.bash_localrc` and `~/.local/bin/env` if they exist. Machine-specific settings go there, not in this repo. |
+
+### zsh support is provisional
+
+The zsh half is written but **unverified**: `zsh` is not installed on the
+development machine, so `tests/test_tags.sh` skips its zsh test with a loud
+`SKIP` rather than pretending to pass. Treat zsh support as untested until it
+has been run on a mac.
 
 `dotfiles/` holds app configs copied to `~/.<name>`: `gitconfig`, `pythonrc`,
 `sqliterc`, `vimrc`.
@@ -60,7 +102,9 @@ each `test_*` function they define. To add a subject, drop in a new
   parses, core config sources cleanly.
 - `test_functions.sh` — `shell_config/00_functions.sh`.
 - `test_deploy.sh` — `deploy.sh` helpers and the `orb_profile` contract.
-- `test_prompt.sh` — `40_prompt.sh` and `70_githelpers.sh`.
+- `test_hooks.sh` — `inject_rc_line` and the set of rc files hooked.
+- `test_tags.sh` — the filename-tag predicates: which files load in which shell.
+- `test_prompt.sh` — `40_prompt.bash.interactive.sh` and `70_githelpers.sh`.
 
 `make lint` runs `bash -n` on everything, and `shellcheck` **only if it is
 installed** — shellcheck is an optional dependency and is not required for

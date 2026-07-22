@@ -7,10 +7,14 @@
 SHELL_CONFIG_FILES=(
     "shell_config/00_functions.sh"
     "shell_config/20_set_variables.sh"
-    "shell_config/30_history.sh"
-    "shell_config/40_prompt.sh"
+    "shell_config/20_set_variables.bash.interactive.sh"
+    "shell_config/30_history.bash.interactive.sh"
+    "shell_config/30_history.zsh.interactive.sh"
+    "shell_config/40_prompt.bash.interactive.sh"
+    "shell_config/40_prompt.zsh.interactive.sh"
     "shell_config/50_nvm.sh"
-    "shell_config/60_aliases.sh"
+    "shell_config/50_nvm.bash.interactive.sh"
+    "shell_config/60_aliases.interactive.sh"
     "shell_config/70_githelpers.sh"
     "shell_config/99_local.sh"
 )
@@ -81,8 +85,8 @@ test_functions_sourceable() {
         set -e
         export HOME='"$HOME"'
         source '"$REPO_ROOT"'/shell_config/00_functions.sh
-        source '"$REPO_ROOT"'/shell_config/30_history.sh
-        source '"$REPO_ROOT"'/shell_config/40_prompt.sh
+        source '"$REPO_ROOT"'/shell_config/30_history.bash.interactive.sh
+        source '"$REPO_ROOT"'/shell_config/40_prompt.bash.interactive.sh
         source '"$REPO_ROOT"'/shell_config/70_githelpers.sh
         echo "success"
     ' 2>&1) || result="error"

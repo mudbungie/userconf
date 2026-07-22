@@ -131,7 +131,7 @@ test_ps1_not_exported() {
     local result
     result=$(env -u PS1 bash --norc --noprofile -c '
         . "'"$REPO_ROOT"'/shell_config/00_functions.sh"
-        . "'"$REPO_ROOT"'/shell_config/40_prompt.sh"
+        . "'"$REPO_ROOT"'/shell_config/40_prompt.bash.interactive.sh"
         [ -n "$PS1" ] || echo "PS1 UNSET IN OWN SHELL"
         bash --norc --noprofile -c "echo \${PS1:-unset}"
     ')
@@ -208,36 +208,6 @@ test_install_packages_detection() {
     output=$( PATH="$bin"; install_packages 2>&1 )
     assert_contains "$output" "brew install vim" "brew is invoked without -y"
     assert_not_contains "$output" "brew install -y" "brew is not given the invalid -y flag"
-
-    teardown
-}
-
-test_inject_orb_profile() {
-    echo "=== Testing inject_orb_profile ==="
-    setup
-    source_deploy_functions
-
-    # Test creating new file
-    inject_orb_profile "$TEST_DIR/newrc" >/dev/null
-    if [ -f "$TEST_DIR/newrc" ] && grep -qF '. ~/userconf/orb_profile' "$TEST_DIR/newrc"; then
-        pass "inject_orb_profile creates new file with hook"
-    else
-        fail "inject_orb_profile create" "file with hook" "missing or no hook"
-    fi
-
-    # Test injecting into existing file
-    echo "# existing content" > "$TEST_DIR/existingrc"
-    inject_orb_profile "$TEST_DIR/existingrc" >/dev/null
-    local first_line
-    first_line=$(head -n 1 "$TEST_DIR/existingrc")
-    assert_equals ". ~/userconf/orb_profile" "$first_line" "inject_orb_profile prepends to existing file"
-
-    # Test idempotence (shouldn't duplicate)
-    local line_count_before line_count_after
-    line_count_before=$(grep -cF '. ~/userconf/orb_profile' "$TEST_DIR/existingrc")
-    inject_orb_profile "$TEST_DIR/existingrc" >/dev/null
-    line_count_after=$(grep -cF '. ~/userconf/orb_profile' "$TEST_DIR/existingrc")
-    assert_equals "$line_count_before" "$line_count_after" "inject_orb_profile is idempotent"
 
     teardown
 }

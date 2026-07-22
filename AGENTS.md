@@ -8,6 +8,10 @@ to this repo.
 - `orb_profile` is the single entrypoint sourced by every shell rc file. It
   sources `shell_config/*.sh` in filename order — the numeric prefix is the load
   order and the only ordering mechanism. Do not add ordering logic anywhere else.
+- Config files are named `NN_name[.tag][.tag].sh` and are sourced only if every
+  tag holds: `bash`, `zsh`, `interactive`. The vocabulary is closed; an unknown
+  tag never holds. Two files may share a slot, so files at one slot must not
+  depend on each other.
 - `00_functions.sh` is the dependency floor; later slots may use its functions,
   it may use nothing.
 - Machine-specific settings do not belong in this repo. `99_local.sh` sources
@@ -27,7 +31,9 @@ to this repo.
 
 ## Gates
 
-- `make test` must be green. 70 assertions; the suite runs in ~2s.
+- `make test` must be green. The suite runs in a few seconds. Do not record the
+  assertion count here — it changes with every ball and a stale number is worse
+  than no number.
 - `.githooks/pre-commit` (active after `make hooks`) enforces a 300-line ceiling
   on shell files and runs the suite. `bl close` runs this same hook as its
   delivery gate, so a red suite blocks delivery.

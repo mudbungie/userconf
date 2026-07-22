@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# shell_config/40_prompt.sh and shell_config/70_githelpers.sh
+# shell_config/40_prompt.bash.interactive.sh and shell_config/70_githelpers.sh
 #
 
 test_gen_PS1() {
     echo "=== Testing gen_PS1 ==="
     setup
 
-    source "$REPO_ROOT/shell_config/40_prompt.sh"
+    source "$REPO_ROOT/shell_config/40_prompt.bash.interactive.sh"
 
     local ps1
     ps1=$(gen_PS1)

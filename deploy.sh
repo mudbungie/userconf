@@ -154,30 +154,30 @@ function backup_file_if_new_content {
     fi
 }
 
-function inject_orb_profile {
-    # Inject orb_profile source line into a shell rc file
-    # Usage: inject_orb_profile <rcfile>
+function inject_rc_line {
+    # Idempotently put a line at the top of a shell rc file, creating the file
+    # if it does not exist. userconf owns its line, not the file: rc files are
+    # shared territory (nvm, brew, rustup all append to them), so this injects
+    # and greps rather than writing the file whole.
+    # Usage: inject_rc_line <rcfile> <line>
     local rcfile="$1"
-    local source_line='. ~/userconf/orb_profile'
+    local line="$2"
 
-    # Skip if file doesn't exist and we're not creating it
     if [ ! -f "$rcfile" ]; then
-        echo "Creating $rcfile with orb_profile hook"
-        echo "$source_line" > "$rcfile"
+        echo "Creating $rcfile with: $line"
+        echo "$line" > "$rcfile"
         return 0
     fi
 
-    # Check if already injected
-    if grep -qF "$source_line" "$rcfile" 2>/dev/null; then
-        echo "$rcfile already has orb_profile hook"
+    if grep -qF "$line" "$rcfile" 2>/dev/null; then
+        echo "$rcfile already has: $line"
         return 0
     fi
 
-    # Inject at the beginning of the file
-    echo "Injecting orb_profile hook into $rcfile"
+    echo "Injecting into $rcfile: $line"
     local temp_file=$(mktemp)
     {
-        echo "$source_line"
+        echo "$line"
         echo ""
         cat "$rcfile"
     } > "$temp_file"
@@ -188,23 +188,19 @@ function inject_orb_profile {
 function install_shell_hooks {
     echo "Installing orb_profile hooks into shell configuration files..."
 
-    # Bash files
-    inject_orb_profile "$HOME/.bashrc"
-    inject_orb_profile "$HOME/.bash_profile"
+    # bash: ~/.bashrc is the real config. ~/.bash_profile gets a bridge to it,
+    # not a second orb_profile line - a *login* bash reads .bash_profile and
+    # never .bashrc, and a login bash is what every macOS Terminal tab starts.
+    # The bridge is what makes the login and non-login paths agree.
+    inject_rc_line "$HOME/.bashrc" '. ~/userconf/orb_profile'
+    inject_rc_line "$HOME/.bash_profile" '[ -f ~/.bashrc ] && . ~/.bashrc'
 
-    # Zsh files
-    inject_orb_profile "$HOME/.zshrc"
-    inject_orb_profile "$HOME/.zprofile"
-
-    # Generic POSIX profile (used by sh, dash, and as fallback)
-    inject_orb_profile "$HOME/.profile"
+    # zsh reads ~/.zshrc for every interactive shell, login or not, so
+    # ~/.zprofile would be redundant. ~/.profile is dropped with it: it is the
+    # non-interactive path, where prompt and history config have no business.
+    inject_rc_line "$HOME/.zshrc" '. ~/userconf/orb_profile'
 
     echo "Shell hooks installed. orb_profile will be sourced on shell startup."
-}
-
-# Legacy function name for backwards compatibility
-function install_bash_config_hooks {
-    install_shell_hooks
 }
 
 function ensure_path_is_correct {

@@ -60,6 +60,15 @@ function get_char_limited_path {
     echo $CWD
 }
 
+# Branch name in braces, or nothing. One git fork per prompt, not two: empty
+# output covers "not a repo" and "detached HEAD" alike.
+function git_branch_prompt {
+    local branch
+    branch=$(git branch --show-current 2>/dev/null)
+    [ -n "$branch" ] && echo "{$branch}"
+    return 0
+}
+
 function show_git_branch {
     git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/(\1)/'
 }

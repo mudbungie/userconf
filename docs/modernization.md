@@ -52,9 +52,18 @@ The tag vocabulary is closed and small:
 | `zsh` | `$ZSH_VERSION` is set |
 | `interactive` | `$-` contains `i` |
 
-No tags means always. So `40_prompt.bash.interactive.sh` and
-`40_prompt.zsh.interactive.sh` are two files at one slot, `00_functions.sh` is
-shared, and adding zsh support for a slot is one new file — severable.
+No tags means always, and an **unknown tag never holds** — a typo fails closed
+(file skipped) instead of leaking bash config into zsh. So
+`40_prompt.bash.interactive.sh` and `40_prompt.zsh.interactive.sh` are two files
+at one slot, `00_functions.sh` is shared, and adding zsh support for a slot is
+one new file — severable.
+
+*Amended by bl-e129 during implementation:* two files at one slot load in glob
+order, which is not the numeric order and carries no meaning. **Files sharing a
+slot must therefore be independent of one another.** This bit immediately:
+`50_nvm.bash.interactive.sh` (nvm's bash-only completion) sorts *before* the
+untagged `50_nvm.sh` that sets `NVM_DIR`, so it derives `${NVM_DIR:-$HOME/.nvm}`
+itself rather than reading the other file's variable.
 
 Rejected alternative: `shell_config/{shared,bash,zsh}/NN_*.sh`. Three trees
 means the numeric order has to be re-merged across three globs at load time,
@@ -76,12 +85,22 @@ setup run in non-interactive shells. The `interactive` tag fixes that without a
 new mechanism: `30_history`, `40_prompt`, `60_aliases` carry it; `00_functions`
 and `20_variables` do not.
 
+*Amended by bl-e129:* slot 20 split rather than staying whole. The untagged
+`20_set_variables.sh` (colors, PATH, `EDITOR`) is as described, but its `shopt`
+calls and the bash-completion block moved to
+`20_set_variables.bash.interactive.sh` — bash-only *and* pointless outside an
+interactive shell. Slot 50 split the same way and for the same reason.
+
 ### rc files to hook (shrinks 5 → 3)
 
 - `~/.bashrc` — the real bash config.
 - `~/.bash_profile` — bridge only (`[ -f ~/.bashrc ] && . ~/.bashrc`). This is
   the exact macOS failure documented in `startup_inconsistency.md`: Terminal
-  starts bash as a *login* shell, which never reads `.bashrc`.
+  starts bash as a *login* shell, which never reads `.bashrc`. Because the
+  bridge line is not the orb line, `inject_orb_profile` (which hardcoded the
+  line it injected) became `inject_rc_line <rcfile> <line>` — one function, the
+  line as an argument, no wrapper. `install_bash_config_hooks`, a dead
+  backwards-compatibility alias, went with it.
 - `~/.zshrc` — zsh reads it for every interactive shell, login or not.
 
 Dropped: `~/.zprofile` (redundant with `.zshrc` for interactive use) and
@@ -218,10 +237,12 @@ covers node and python, so **Poetry does not survive** — and `install_not_pack
 which curl-pipes nvm v0.39.2 (2022) and Poetry and is never called by
 `configure_user`, is deleted rather than wired.
 
-**Related prompt cost:** `40_prompt.sh` runs `is_git_repo && git branch
+**Related prompt cost:** `40_prompt.sh` ran `is_git_repo && git branch
 --show-current` on *every prompt* — two forks per keystroke-return in any
-directory. Whoever rewrites the prompt for D1 should collapse that to one `git`
-call.
+directory. **Done by bl-e129:** `git_branch_prompt` in `00_functions.sh` makes
+one `git branch --show-current` call and prints `{branch}` or nothing; empty
+output covers "not a repo" and "detached HEAD" alike. Both prompt files use it,
+so the collapse was not duplicated per shell.
 
 **The agent tooling** (`dc`, `toss`, `roll`, currently uncommitted in
 `60_aliases.sh`) is tracked config that depends on `claude`, `bl`, `jq` and
@@ -257,7 +278,11 @@ oversight. If one of these bites, amend the decision above it.
    (verified: `command -v zsh` is empty), so the zsh half of D1 is written blind
    and CI cannot exercise it. Mitigation: the test runner must *skip with a
    warning*, never silently pass, and zsh support stays marked provisional in
-   README until it has been run on the mac.
+   README until it has been run on the mac. **As shipped by bl-e129:**
+   `tests/test_tags.sh::test_zsh_config_under_zsh` prints a yellow `SKIP` naming
+   zsh as not installed; the tag *predicates* themselves are exercised under
+   bash with a synthetic `shell_config` fixture, so what is unverified is
+   narrowed to the content of the two `.zsh.` files, not the loader.
 5. **No uninstall.** Symlinks and injected rc lines are left behind forever. This
    is why `unbackup_file` is on the chopping block in D2 — half an uninstall is
    worse than none.
