@@ -40,7 +40,6 @@ double-sourcing with `ORB_PROFILE_LOADED`, then sources every
 | `50_nvm.sh` | Loads nvm and its completion if present. |
 | `60_aliases.sh` | Aliases and small command wrappers. |
 | `70_githelpers.sh` | Git log formatting helpers (`pretty_git_format`) and git aliases' backing functions. |
-| `90_amazon.sh` | Work-machine-only paths, gated on the hostname. |
 | `99_local.sh` | Last word: sources `~/.bash_localrc` and `~/.local/bin/env` if they exist. Machine-specific settings go there, not in this repo. |
 
 `dotfiles/` holds app configs copied to `~/.<name>`: `gitconfig`, `pythonrc`,

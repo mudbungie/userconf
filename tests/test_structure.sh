@@ -12,7 +12,6 @@ SHELL_CONFIG_FILES=(
     "shell_config/50_nvm.sh"
     "shell_config/60_aliases.sh"
     "shell_config/70_githelpers.sh"
-    "shell_config/90_amazon.sh"
     "shell_config/99_local.sh"
 )
 
