@@ -218,9 +218,50 @@ then write, in their own local file:
 The escape hatch extends itself. Core needs no change, and we do not pay for a
 directory that most machines would leave empty.
 
-**Deferred, deliberately:** `~/.bash_localrc` is a bash-era name for
-shell-agnostic content. Renaming costs a manual touch on every machine for zero
-behavior; leave it. Revisit only if the shell split makes it actively misleading.
+### The name `~/.bash_localrc` — settled, not deferred (bl-25cd)
+
+D3 originally left this open: "*a bash-era name for shell-agnostic content …
+leave it. Revisit only if the shell split makes it actively misleading.*" D1 has
+landed, `99_local.sh` is untagged, and it now sources a `bash`-named file under
+zsh. The condition fired, so this is closed here.
+
+**Decision: keep the name. Ratified.** It is not renamed now and it is not
+queued to be renamed; a later reader raising it again should read this section
+rather than reopen it.
+
+The rename is not free and not symmetric with what it buys:
+
+- **The file is untracked and `deploy.sh` never creates it** (see "First tenant"
+  below — that asymmetry with `~/.gitconfig_local` is deliberate). It exists
+  only where a human made it, so a rename is a manual `mv` on every machine this
+  repo has ever configured.
+- **Until that `mv` happens the machine loses its local policy silently.**
+  `source_if_exists` is a no-op on a missing file *by design* — absent local
+  config is the normal case, so there is nothing for it to complain about. The
+  rename would turn that correct silence into a silent regression: no proxy, no
+  PATH policy, no keys, and no message saying so.
+- **The obvious mitigations are both forbidden by rules already stated here.**
+  Sourcing both names during a transition is two representations of one fact —
+  the drift this document exists to prevent. A one-shot migration warning in
+  `deploy.sh` is mechanism added to the core for a transition, and `deploy.sh`
+  is re-run forever, so it would never be removable without yet another ball.
+- **What the rename actually buys is accuracy in a name, and the same accuracy
+  is available from the document the reader is already in.** The failure mode
+  the stale name creates is a zsh user assuming this hook is not for them and
+  reaching for `~/.zshrc` directly — which defeats severability. That is cured
+  by saying so, not by moving a file: README's "Where machine-specific config
+  goes" now states outright that `99_local.sh` carries no shell tag and that the
+  one file serves bash and zsh alike, whatever its name says.
+
+Nothing in this repo's principles ranks a tidy filename above avoiding a silent
+loss of user data. Subtraction does not apply — a rename adds and removes
+nothing — and single-source-of-truth is satisfied either way, by one file with
+one name. So the tie is broken by cost, and the cost is entirely on the human.
+
+**If the user ever does want it renamed**, that is their call and not an agent's,
+and the whole of it is: pick the new name, change the one line in
+`99_local.sh`, update README and `AGENTS.md`, and `mv` the file on every machine
+in the same sitting. No transitional dual-source, then or ever.
 
 ### First tenant: git identity (bl-2a1a)
 

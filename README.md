@@ -206,6 +206,15 @@ machine and nowhere else. Create it by hand; nothing in this repo creates it,
 and its absence is not an error (`source_if_exists` is a no-op on a missing
 file).
 
+**The `bash` in the name is historical — this is the local hook for zsh too.**
+`99_local.sh` carries no shell tag, so it loads in every shell userconf
+supports, and `~/.bash_localrc` is the one file both of them read. Do not put
+machine-local zsh settings in `~/.zshrc`: that file is shared territory (nvm,
+brew, rustup all append to it) and userconf only owns its one injected line
+there. The name is kept on purpose — renaming it would silently strip local
+config from every machine that had not yet been touched by hand. See decision
+**D3** in [`docs/modernization.md`](docs/modernization.md).
+
 The same shape covers non-shell config: `~/.gitconfig_local`, pulled in by an
 `[include]` at the bottom of `dotfiles/gitconfig`, is where git identity lives
 (see [Git identity](#git-identity)). That one *is* created by `deploy.sh` —
