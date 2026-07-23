@@ -112,6 +112,7 @@ adding zsh support for a slot is one new file and nothing else.
 | `00_functions.sh` | Shared shell functions everything else depends on (`add_to_path`, `bash_colors`, `source_if_exists`, `is_git_repo`, `git_branch_prompt`, …). Must come first. |
 | `20_set_variables.sh` | Environment variables, color settings, PATH. |
 | `20_set_variables.bash.interactive.sh` | `shopt` settings and bash completion. |
+| `25_colors.interactive.sh` | Colored `ls` and `grep`. `dircolors` + `--color=auto` where GNU coreutils is what we have, `CLICOLOR` + `ls -G` where it is BSD's. Ubuntu's stock `~/.bashrc` used to do this and `deploy.sh` displaces that file, so the slot has to carry it or every machine loses it. |
 | `30_history.bash.interactive.sh` | bash history: sizes, dedup, append-and-reload at each prompt. |
 | `30_history.zsh.interactive.sh` | The same intent in zsh's own `setopt`s and `SAVEHIST`. |
 | `40_prompt.bash.interactive.sh` | `gen_PS1` in bash prompt escapes, and the `PS1` it installs. |

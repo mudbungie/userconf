@@ -8,6 +8,7 @@ SHELL_CONFIG_FILES=(
     "shell_config/00_functions.sh"
     "shell_config/20_set_variables.sh"
     "shell_config/20_set_variables.bash.interactive.sh"
+    "shell_config/25_colors.interactive.sh"
     "shell_config/30_history.bash.interactive.sh"
     "shell_config/30_history.zsh.interactive.sh"
     "shell_config/40_prompt.bash.interactive.sh"
