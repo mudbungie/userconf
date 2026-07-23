@@ -55,6 +55,51 @@ test_orb_profile_guard_not_exported() {
     teardown
 }
 
+test_orb_profile_guard_is_pid_stamped() {
+    echo "=== Testing a foreign guard value does not suppress loading ==="
+    setup
+
+    mkdir -p "$TEST_DIR/userconf/shell_config"
+    echo 'ORB_CHILD_MARKER=loaded' > "$TEST_DIR/userconf/shell_config/00_test.sh"
+
+    # The defect this ball fixes. d8dfcc2 shipped `export ORB_PROFILE_LOADED=1`
+    # and fe70e77 removed the export, but a desktop session started in between
+    # keeps handing the exported 1 to every shell beneath it until logout. A
+    # guard that only asks "is it set?" reads that as "already done" and loads
+    # nothing at all, silently. A pid stamp cannot be inherited into a match.
+    local result
+    result=$(ORB_PROFILE_LOADED=1 ORB_USERCONF_DIR="$TEST_DIR/userconf" \
+        bash --norc --noprofile -c '
+        . "'"$REPO_ROOT"'/orb_profile"
+        echo "${ORB_CHILD_MARKER:-nothing-loaded}"
+    ')
+    assert_equals "loaded" "$result" \
+        "an inherited ORB_PROFILE_LOADED=1 does not stop shell_config loading"
+
+    # Any foreign value, not just the historical 1 - including another shell's
+    # pid, which is exactly what an exported stamp would look like.
+    result=$(ORB_PROFILE_LOADED=999999 ORB_USERCONF_DIR="$TEST_DIR/userconf" \
+        bash --norc --noprofile -c '
+        . "'"$REPO_ROOT"'/orb_profile"
+        echo "${ORB_CHILD_MARKER:-nothing-loaded}"
+    ')
+    assert_equals "loaded" "$result" \
+        "a foreign pid in the guard does not stop shell_config loading either"
+
+    # And the guard still does its own job: this shell, sourcing twice.
+    result=$(env -u ORB_PROFILE_LOADED ORB_USERCONF_DIR="$TEST_DIR/userconf" \
+        bash --norc --noprofile -c '
+        . "'"$REPO_ROOT"'/orb_profile"
+        ORB_CHILD_MARKER=
+        . "'"$REPO_ROOT"'/orb_profile"
+        echo "${ORB_CHILD_MARKER:-second-source-skipped}"
+    ')
+    assert_equals "second-source-skipped" "$result" \
+        "the same shell sourcing twice still short-circuits"
+
+    teardown
+}
+
 test_ps1_not_exported() {
     echo "=== Testing PS1 is not exported ==="
     setup

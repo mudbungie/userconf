@@ -7,11 +7,15 @@
 # always. The tag vocabulary is closed: bash, zsh, interactive. An unknown tag
 # never holds, so a typo fails closed instead of leaking bash config into zsh.
 
-# Idempotence guard - prevent double-sourcing within one shell.
-# Deliberately NOT exported: an exported guard is inherited by child shells,
-# which would then skip loading the configuration entirely.
-[ -n "$ORB_PROFILE_LOADED" ] && return 0
-ORB_PROFILE_LOADED=1
+# Idempotence guard - prevent double-sourcing within one shell. The question is
+# "have *I* already loaded?", so the mark is this shell's own pid and not a bare
+# 1: a value arriving from anywhere else cannot match it, and the guard stops
+# being something an ancestor can switch off. It is still not exported - but
+# that is now belt to the pid's braces rather than the whole defence, which
+# matters because an exported 1 survives in a desktop session for as long as the
+# login lasts, silently loading no configuration at all in every shell beneath.
+[ "$ORB_PROFILE_LOADED" = "$$" ] && return 0
+ORB_PROFILE_LOADED=$$
 
 # Determine the userconf directory location
 # Default to ~/userconf, but allow override via ORB_USERCONF_DIR

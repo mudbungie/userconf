@@ -81,6 +81,16 @@ repo depends on it.
 double-sourcing with `ORB_PROFILE_LOADED`, then sources every
 `shell_config/*.sh` in filename order. The numeric prefix *is* the load order.
 
+The guard holds the shell's **own pid**, not a bare `1`, because the question it
+asks is "have *I* already loaded?" and only a pid answers that. A value arriving
+from anywhere else cannot match, so no ancestor can switch the configuration off
+for everything beneath it. That is not hypothetical: an early version exported
+the guard, and a desktop session started before the export was removed went on
+handing an exported `1` to every shell it spawned — each one loading nothing at
+all, with no error, until the next logout. Un-exporting fixed new sessions and
+could not reach the running one. The pid stamp does, and makes a future stray
+`export` harmless rather than fatal.
+
 ### Filename tags
 
 A config file is named:

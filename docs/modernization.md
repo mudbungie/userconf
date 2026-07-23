@@ -118,6 +118,16 @@ at all* — no aliases, no prompt, no PATH additions. Verified:
 The guard must be a plain shell variable, never exported. Assign to bl-a2a3.
 Same smell in `40_prompt.sh`: `export PS1` has no reason to be exported.
 
+**Un-exporting was necessary and not sufficient** (bl-7950). It fixes shells
+started after the fix and cannot reach a session already holding the exported
+value — which is how this was rediscovered months later, on a machine whose
+desktop session predated fe70e77 and was therefore still loading no
+configuration at all. The reframe: `[ -n "$X" ]` asks "is it set?" when the
+guard means "have *I* already loaded?", and those diverge exactly when the value
+comes from outside. Stamping the guard with `$$` asks the intended question, so
+an inherited value is not a special case to defend against — it simply does not
+match. Un-exported it stays, but now as belt rather than as the whole defence.
+
 ---
 
 ## D2 — Deploy by symlink
