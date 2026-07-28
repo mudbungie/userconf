@@ -103,6 +103,8 @@ test_commit_refused_for_a_foreign_author() {
     assert_false "$status" "the commit is refused"
     assert_contains "$out" "AUTHOR email is <else@example.invalid>" \
         "the refusal names the offending address"
+    assert_contains "$out" "git config --global user.email" \
+        "and names the authority it checked against, not a file that may not exist"
     assert_equals "$before" "$(git rev-parse HEAD)" "no commit was made"
 
     _leave_sandbox
