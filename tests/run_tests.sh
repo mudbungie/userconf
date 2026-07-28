@@ -12,8 +12,12 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Be hermetic: git hooks export GIT_DIR/GIT_INDEX_FILE, which would make every
-# directory look like a git repo to the tests.
+# directory look like a git repo to the tests. The identity pair goes with
+# them, and for the same reason - git exports it to every hook, and the shell
+# exports it to every shell (see README, "Identity is enforced"), so a sandbox
+# commit would be authored by the real machine rather than by its own config.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
 
 # shellcheck source=tests/lib.sh
 source "$SCRIPT_DIR/lib.sh"

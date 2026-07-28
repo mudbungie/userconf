@@ -1,7 +1,8 @@
 SHELL := /bin/bash
 
 SHELL_SCRIPTS := deploy.sh orb_profile $(wildcard shell_config/*.sh) \
-                 $(wildcard tests/*.sh) $(wildcard .githooks/*)
+                 $(wildcard tests/*.sh) $(wildcard .githooks/*) \
+                 githooks-global/chain
 
 .PHONY: help test lint install hooks
 

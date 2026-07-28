@@ -1,5 +1,11 @@
 [core]
     editor = vim
+    # Every repo on this machine, including one cloned a minute from now, runs
+    # githooks-global/chain. It enforces the commit invariants and then exec's
+    # the repo's own .git/hooks/<name>, so taking this over costs a repo
+    # nothing. ~/userconf is hard-coded here for the same reason it is in the
+    # injected rc line: the clone path is not a variable.
+    hooksPath = ~/userconf/githooks-global
 [init]
     defaultBranch = main
 [color]

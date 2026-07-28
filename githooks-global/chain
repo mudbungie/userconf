@@ -1,0 +1,96 @@
+#!/bin/sh
+#
+# The machine's git hook. `core.hooksPath` in dotfiles/gitconfig points every
+# repo on this machine here, so this runs in repos that have never heard of
+# userconf - including one cloned a minute ago. That reach is the whole point:
+# a per-repo hook cannot be installed into a clone that does not exist yet.
+#
+# One file, installed under every hook name as a symlink to it; the hook reads
+# its own name out of $0 to know which one it is. Two jobs:
+#
+#  1. On commit-msg, enforce the two invariants. commit-msg is the single hook
+#     git runs for every locally authored commit - plain, --amend, and merge
+#     alike - and the only place `git commit --author=X` is still visible.
+#     Replays run no commit hooks at all (cherry-pick, rebase and am were all
+#     measured silent), so a legitimately foreign author is never rejected.
+#
+#  2. Everywhere else, get out of the way: the repo's own .git/hooks/<name> is
+#     exec'd if it is there. Without this, taking over core.hooksPath would
+#     silently disable every repo-local hook on the machine - which is the
+#     failure mode that makes people give up on global hooks.
+#
+# Hooks whose mere presence changes git's behaviour - push-to-checkout,
+# proc-receive, fsmonitor-watchman - are deliberately not linked. A stub that
+# exits 0 is a no-op only where absence and success mean the same thing.
+#
+# Bypass (emergencies only): git commit --no-verify.
+#
+
+set -u
+
+hook=${0##*/}
+
+# Lines that credit a machine. Two shapes, both anchored to the start of a
+# line: a trailer whose key is an authorship key AND whose value names a
+# vendor, and the tool footer ("Generated with [Claude Code]"). Anchoring is
+# what keeps prose safe - a commit message that discusses Claude in a sentence
+# is not an authorship line and is not touched.
+AI_TRAILER='^[[:space:]]*(co-authored-by|co-developed-by|assisted-by|generated-by|signed-off-by)[[:space:]]*:.*(claude|anthropic|openai|chatgpt|copilot|codex|cursor|aider|devin|gemini)'
+# [^[:alnum:]]* rather than a dot: it eats a leading emoji byte by byte, so the
+# match does not depend on the locale being a UTF-8 one.
+AI_FOOTER='^[^[:alnum:]]*(generated|created|authored) with \[?(claude|chatgpt|copilot|cursor|gemini|codex)'
+AI_LINE="$AI_TRAILER|$AI_FOOTER"
+
+# The email in a "Name <email> ts tz" ident line.
+ident_email() {
+    git var "GIT_$1_IDENT" 2>/dev/null | sed -e 's/.*<//' -e 's/>.*//'
+}
+
+# The authority is the machine's own global git config, which includes
+# ~/.gitconfig_local - so this file names no person either. An identity-less
+# machine enforces nothing rather than refusing every commit; deploy.sh already
+# warns loudly about that case, and blocking work is not its fix.
+enforce_identity() {
+    expected=$(git config --global user.email 2>/dev/null)
+    [ -n "$expected" ] || return 0
+
+    for role in AUTHOR COMMITTER; do
+        got=$(ident_email "$role")
+        [ "$got" = "$expected" ] && continue
+        echo "commit refused: $role email is <$got>, not <$expected>." >&2
+        echo "  This machine commits as <$expected>; see ~/.gitconfig_local." >&2
+        exit 1
+    done
+}
+
+# Strip, do not refuse. The invariant is "the message has no authorship line",
+# and deleting the line satisfies it in one pass - where refusing would only
+# hand the same message back to whatever wrote it.
+strip_ai_lines() {
+    msg=$1
+    grep -qiE "$AI_LINE" "$msg" 2>/dev/null || return 0
+
+    tmp="$msg.orb.$$"
+    grep -viE "$AI_LINE" "$msg" > "$tmp"
+    # A removed trailer block leaves its blank separator line behind; command
+    # substitution drops trailing newlines, which is exactly that cleanup.
+    printf '%s\n' "$(cat "$tmp")" > "$msg"
+    rm -f "$tmp"
+    echo "commit-msg: removed AI authorship line(s) from the message." >&2
+}
+
+# The repo's own hook, if it has one. --git-common-dir and not --git-dir: a
+# linked worktree has its own gitdir but shares the main repo's hooks.
+chain() {
+    common=$(git rev-parse --git-common-dir 2>/dev/null) || return 0
+    repo_hook="$common/hooks/$hook"
+    [ -x "$repo_hook" ] && exec "$repo_hook" "$@"
+    return 0
+}
+
+if [ "$hook" = commit-msg ]; then
+    enforce_identity
+    strip_ai_lines "$1"
+fi
+
+chain "$@"

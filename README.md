@@ -170,6 +170,30 @@ a commented-out `[user]` section and says so loudly; git will then ask you who
 you are, which is the honest failure. Nothing here ever invents a placeholder
 name that would quietly end up in a commit.
 
+### Identity is enforced, not merely defaulted
+
+`user.email` in a config file is a *default*, and a default is not a guarantee:
+one `git config user.email …` inside one clone silently overrides it there
+forever. So `shell_config/22_git_identity.sh` reads the machine's identity back
+out of git and **exports** it:
+
+```sh
+GIT_AUTHOR_NAME  GIT_AUTHOR_EMAIL  GIT_COMMITTER_NAME  GIT_COMMITTER_EMAIL
+```
+
+Environment beats every config file git reads, `.git/config` included, so a
+wrong identity can no longer be configured into existence — in any repo on the
+machine, including one cloned a minute from now. The tracked file ships the
+rule and never the name: the value still comes from `~/.gitconfig_local`, so
+D3 holds.
+
+This does **not** rewrite authorship that is legitimately someone else's.
+`cherry-pick`, `rebase` and `am` each set `GIT_AUTHOR_*` themselves for the
+commit they replay, so the original author survives untouched — measured in
+`tests/test_git_enforcement.sh`, not assumed. The one hole the environment
+cannot close is an explicit `git commit --author=`, and that is what
+`githooks-global` is for.
+
 ### Per-tree identity
 
 A second identity — a work tree, a client's repos — is one section in that same
@@ -289,6 +313,42 @@ each `test_*` function they define. To add a subject, drop in a new
 installed** — shellcheck is an optional dependency and is not required for
 `make test` or for committing.
 
+## Machine-wide git hooks
+
+`githooks-global/` is aimed at **every repo on the machine** — `dotfiles/gitconfig`
+sets `core.hooksPath` to it, so it is live in a repo cloned five minutes from
+now, with nothing to install per repo. That reach is the point: a per-repo hook
+cannot be put into a clone that does not exist yet.
+
+It is one script, `chain`, symlinked under every hook name; the hook reads `$0`
+to learn which one it is. Two jobs:
+
+1. **On `commit-msg`, enforce the commit invariants.** The author and committer
+   must be `git config --global user.email` (which is to say `~/.gitconfig_local`
+   — this ships no name either), and AI authorship lines are deleted from the
+   message: `Co-Authored-By:`-style trailers naming a vendor, and the
+   `Generated with [Claude Code]` footer. Both patterns are anchored to the
+   start of a line and to a trailer key, so prose that mentions a tool, and a
+   human co-author, are left alone. `commit-msg` is the *only* hook that fires
+   for every locally authored commit — plain, `--amend` and merge alike — and
+   the only one where `--author=` is still visible. Replays run no commit hooks
+   at all, which is why cherry-picking someone else's commit is never refused.
+2. **Everywhere else, get out of the way.** The repo's own `.git/hooks/<name>`
+   is `exec`'d if it exists. Without this, taking over `core.hooksPath` would
+   silently disable every repo-local hook on the machine — the usual reason
+   global hooks get abandoned.
+
+`push-to-checkout`, `proc-receive` and `fsmonitor-watchman` are deliberately
+**not** linked: git changes what it does when those merely exist, so a stub
+that exits 0 would not be a no-op.
+
+A repo that sets its own `core.hooksPath` (this one does, and so do husky and
+friends) replaces the global dir outright and is not covered. The fix is one
+symlink in that repo's hooks directory, which is exactly what
+`.githooks/commit-msg` here is.
+
+Strip the whole arrangement with `git config --global --unset core.hooksPath`.
+
 ## Git hooks
 
 Hooks are version controlled in `.githooks/`. They are not active until you run
@@ -303,6 +363,11 @@ worktrees share, so one `make hooks` covers them all.
 `orb_profile`) exceeds 300 lines, or if the test suite fails. Markdown, the
 `dotfiles/` payloads and config files are exempt from the line limit. Bypass
 with `git commit --no-verify`.
+
+**`commit-msg`** is a symlink to `../githooks-global/chain`. Setting
+`core.hooksPath` here is what shuts the machine-wide dir out of this repo, and
+this link is what lets it back in, so userconf's own commits are held to the
+same two invariants as everything else.
 
 **`reference-transaction`** auto-pushes `master` to `origin` whenever the branch
 moves — merge, commit, or plumbing ref update alike. This is deliberate: the

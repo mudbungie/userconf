@@ -14,6 +14,12 @@ to this repo.
   depend on each other.
 - `00_functions.sh` is the dependency floor; later slots may use its functions,
   it may use nothing.
+- `githooks-global/` is aimed outward, at every repo on the machine, and is
+  reached by `core.hooksPath` in `dotfiles/gitconfig`. `.githooks/` is this
+  repo's own gate. One script, `chain`, symlinked under each hook name; it
+  enforces the commit invariants on `commit-msg` and `exec`s the repo's own
+  `.git/hooks/<name>` for everything else. Adding a hook name means adding a
+  symlink to `chain`, never a second script.
 - Machine-specific settings do not belong in this repo. `99_local.sh` sources
   `~/.bash_localrc`; that is where they go.
 - `deploy.sh` must stay idempotent — it is re-run on every update, not just at

@@ -16,7 +16,7 @@ status=0
 # Code = shell. Docs (*.md), data (dotfiles/*) and config are exempt.
 is_code() {
     case "$1" in
-        *.sh | .githooks/* | orb_profile) return 0 ;;
+        *.sh | .githooks/* | githooks-global/* | orb_profile) return 0 ;;
         *) return 1 ;;
     esac
 }
