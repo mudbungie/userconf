@@ -110,6 +110,28 @@ test_commit_refused_for_a_foreign_author() {
     _leave_sandbox
 }
 
+test_balls_store_identity_is_allowed() {
+    echo "=== Testing that the balls store identity is exempt ==="
+    setup
+    _sandbox_machine
+
+    # balls (the task tracker) seals its stores as <balls@localhost> for both
+    # roles - the one sanctioned service identity besides the human's.
+    local status
+    echo change > file.txt
+    git add file.txt
+    GIT_COMMITTER_NAME=balls GIT_COMMITTER_EMAIL=balls@localhost \
+        git commit -qm "sealed by the store" \
+            --author="balls <balls@localhost>" \
+        && status=0 || status=$?
+
+    assert_true "$status" "the commit is accepted"
+    assert_equals "balls@localhost" "$(git log -1 --format=%ae)" \
+        "the author survives as the store identity"
+
+    _leave_sandbox
+}
+
 test_ai_authorship_lines_are_stripped() {
     echo "=== Testing that AI authorship lines never reach a commit ==="
     setup

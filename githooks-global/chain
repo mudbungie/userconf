@@ -54,9 +54,13 @@ enforce_identity() {
     expected=$(git config --global user.email 2>/dev/null)
     [ -n "$expected" ] || return 0
 
+    # balls (the task tracker) seals its stores as <balls@localhost> - a
+    # machine-local service identity, not a person, and its store history is
+    # already uniformly that. The one sanctioned exception.
     for role in AUTHOR COMMITTER; do
         got=$(ident_email "$role")
         [ "$got" = "$expected" ] && continue
+        [ "$got" = "balls@localhost" ] && continue
         echo "commit refused: $role email is <$got>, not <$expected>." >&2
         # Name the authority, not one of the files it might live in: the
         # include chain means ~/.gitconfig_local is only its usual home.
