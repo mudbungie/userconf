@@ -41,6 +41,22 @@ AI_TRAILER='^[[:space:]]*(co-authored-by|co-developed-by|assisted-by|generated-b
 AI_FOOTER='^[^[:alnum:]]*(generated|created|authored) with \[?(claude|chatgpt|copilot|cursor|gemini|codex)'
 AI_LINE="$AI_TRAILER|$AI_FOOTER"
 
+# A repo under the temp dir is a throwaway - a test harness's sandbox, not
+# somewhere work is committed. This is a constraint on committing sloppily, and
+# there is no sloppiness to catch in a repo that will not outlive the test, so
+# enforcing there buys nothing and breaks other people's suites: a fixture that
+# commits as t@t.local is refused outright, or silently relabelled, depending
+# only on whether the shell that started the test had the identity exported.
+# TMPDIR is the same signal mktemp, Rust and Go use to pick that directory.
+is_throwaway() {
+    top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+    tmp=${TMPDIR:-/tmp}
+    case "$top" in
+        "${tmp%/}"/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # The email in a "Name <email> ts tz" ident line.
 ident_email() {
     git var "GIT_$1_IDENT" 2>/dev/null | sed -e 's/.*<//' -e 's/>.*//'
@@ -94,7 +110,7 @@ chain() {
     return 0
 }
 
-if [ "$hook" = commit-msg ]; then
+if [ "$hook" = commit-msg ] && ! is_throwaway; then
     enforce_identity
     strip_ai_lines "$1"
 fi

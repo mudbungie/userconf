@@ -338,6 +338,15 @@ to learn which one it is. Two jobs:
    silently disable every repo-local hook on the machine — the usual reason
    global hooks get abandoned.
 
+**A repo under the temp dir is exempt.** This is a constraint on *committing
+sloppily*, and there is no sloppiness to catch in a repo that will not outlive
+the test that made it — while enforcing there does real damage: a suite whose
+fixtures commit as `t@t.local` is refused outright from a shell that lacks the
+exported identity, or has its fixture silently relabelled from one that has it,
+so the same test passes or fails on how it was launched. `TMPDIR` (default
+`/tmp`) is the signal, the same one `mktemp`, Rust and Go use to choose that
+directory.
+
 `push-to-checkout`, `proc-receive` and `fsmonitor-watchman` are deliberately
 **not** linked: git changes what it does when those merely exist, so a stub
 that exits 0 would not be a no-op.

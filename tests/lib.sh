@@ -107,3 +107,48 @@ teardown() {
 source_deploy_functions() {
     source <(sed -n '1,/^if \[\[/p' "$REPO_ROOT/deploy.sh" | head -n -1)
 }
+
+# --- A sandbox machine for the commit-invariant suites -------------------
+#
+# Its own HOME, its own global gitconfig pointing at githooks-global, and the
+# environment scrubbed of everything the real machine exports - so no case can
+# pass by accident of the developer's own setup. Shared by test_git_*.sh.
+
+SANDBOX_EMAIL="sandbox@example.invalid"
+
+# A machine with one identity and this repo as its global hooks dir, plus a
+# repo on it holding one commit. Leaves the shell inside that repo.
+_sandbox_machine() {
+    _ENFORCE_PRIOR_HOME=$HOME
+    _ENFORCE_PRIOR_TMPDIR=${TMPDIR-}
+    export HOME="$TEST_DIR/home"
+
+    # setup() puts TEST_DIR under the temp dir, which is precisely what the
+    # throwaway exemption skips - so aim TMPDIR at a sibling. The repo below
+    # then sits outside it and is enforced, as one in ~/dev would be.
+    export TMPDIR="$TEST_DIR/tmpdir"
+    mkdir -p "$TMPDIR"
+    mkdir -p "$HOME"
+    unset XDG_CONFIG_HOME GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
+    unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
+
+    printf '[user]\n\tname = Sandbox\n\temail = %s\n[core]\n\thooksPath = %s\n' \
+        "$SANDBOX_EMAIL" "$REPO_ROOT/githooks-global" > "$HOME/.gitconfig"
+
+    mkdir -p "$TEST_DIR/repo"
+    cd "$TEST_DIR/repo" || return 1
+    git init -q
+    echo seed > seed.txt
+    git add seed.txt
+    git commit -qm "seed"
+}
+
+_leave_sandbox() {
+    export HOME="$_ENFORCE_PRIOR_HOME"
+    if [ -n "$_ENFORCE_PRIOR_TMPDIR" ]; then
+        export TMPDIR="$_ENFORCE_PRIOR_TMPDIR"
+    else
+        unset TMPDIR
+    fi
+    teardown
+}
