@@ -88,8 +88,39 @@ if [ -z "$store" ] || [ ! -d "$store" ]; then
 fi
 
 cd "$store" || exit 1
+
+# Scope the scan to the op's OWN commit when both sides can (yog bl-1007): the
+# §7 post payload's top-level `commit` is the one text unambiguously this op's,
+# where the whole checkout is written concurrently by other agents — a
+# neighbour's standing pollution must not wedge this op. The field is TOP-LEVEL
+# (not under `binding`, which `field()` reads), and `--commit` is passed only
+# to a scanner whose text mentions it, because this plugin runs on every
+# opted-in project on the box and an older scanner would refuse the flag.
+# Missing field ⇒ nag + whole-store scan (this file's fail-open posture).
+commit=''
+if command -v jq >/dev/null 2>&1; then
+  commit="$(printf '%s' "$payload" | jq -r '.commit // empty' 2>/dev/null)"
+elif command -v python3 >/dev/null 2>&1; then
+  commit="$(printf '%s' "$payload" | python3 -c \
+    "import sys,json;print(json.load(sys.stdin).get('commit',''))" 2>/dev/null)"
+else
+  commit="$(printf '%s' "$payload" | tr -d '\n' |
+    sed -n 's/.*"commit"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+fi
+
+if [ -n "$commit" ] && grep -q -- '--commit' "$scan" 2>/dev/null; then
+  set -- --commit "$commit"
+else
+  set --
+  if [ -z "$commit" ]; then
+    echo "bl-leak-gate: the $op payload named no commit; falling back to the" >&2
+    echo "  whole-store scan. If the bl payload wire changed, fix" >&2
+    echo "  ~/userconf/bin/bl-leak-gate — this warning will nag until it is fixed." >&2
+  fi
+fi
+
 # Findings and the clean line both go to stderr: stdout is not this plugin's.
-if "$scan" >&2; then
+if "$scan" "$@" >&2; then
   exit 0
 fi
 
