@@ -18,6 +18,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # commit would be authored by the real machine rather than by its own config.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
+# balls' safegit exports config redirects to its subprocesses (GIT_CONFIG_GLOBAL
+# =/dev/null and friends); a delivery-gate run would then sandbox-commit with no
+# identity and die. Same hermeticity rule as the vars above.
+unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM GIT_CONFIG_NOSYSTEM GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS
 
 # shellcheck source=tests/lib.sh
 source "$SCRIPT_DIR/lib.sh"

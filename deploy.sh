@@ -121,6 +121,18 @@ function make_local_bin_dir {
     mkdir -p ~/.local/bin
 }
 
+# bin/ holds machine-global executables (the bl-leak-gate balls plugin, and
+# whatever joins it); each is symlinked into ~/.local/bin, already on PATH. Idempotence is structural, like install_dotfiles: a correct link is
+# already the answer, and ln -sfn converges a wrong or missing one.
+function install_local_bins {
+    local repo script
+    repo=$(pwd)
+    for script in "$repo"/bin/*; do
+        [[ -x "$script" ]] || continue
+        ln -sfn "$script" "$HOME/.local/bin/${script##*/}"
+    done
+}
+
 function ensure_requirements {
     echo "Ensuring required programs"
     if ! command -v git >/dev/null ; then
@@ -264,6 +276,7 @@ function configure_user {
     ensure_requirements
     make_notes_dir
     make_local_bin_dir
+    install_local_bins
     install_packages
     install_mise
     install_shell_hooks

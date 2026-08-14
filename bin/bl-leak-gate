@@ -1,0 +1,100 @@
+#!/bin/sh
+# bl-leak-gate — the machine-global balls plugin gating TASK-STORE writes on
+# the project's own leak scanner (the generic half of yog's bl-1043 gate).
+#
+# WIRING (machine layer, balls bl-053a): named once in
+# ~/.config/balls/plugins.toml under every publishing op's `.post_prepend`, so
+# it runs immediately before `bl-tracker` in EVERY checkout on this box —
+# present and future — with no per-landing `bl install --bin`. The binary
+# resolves beside `bl` / on `$PATH`; this file lives in ~/userconf/bin and is
+# symlinked into ~/.local/bin by deploy.sh.
+#
+# OPT-IN IS THE PROJECT'S OWN SIGNAL. A project that ships an executable
+# `scripts/leak-scan.sh` (the yog pattern: the scanner scans the tree it is
+# RUN IN, rules resolved from the script's own directory) has declared what
+# may not publish; this gate runs that scanner over the store checkout before
+# the tracker pushes it. No scanner ⇒ not opted in ⇒ silent pass. Policy stays
+# in the repo, mechanism stays here: deleting the repo's scanner dissolves the
+# gate for that repo without touching this file.
+#
+# FAILURE POSTURE. An opted-in project whose store checkout can't be read
+# REFUSES the op (a gate that shrugs is not a gate). A payload this gate
+# cannot parse at all warns loudly and PASSES: this plugin runs on every op of
+# every store on the box, so a bl wire change must degrade to "nagging", not
+# "no bl op works anywhere"; the repo-side store-scan CI is the backstop, and
+# the warning names this file so the nag gets fixed.
+#
+# Contract (balls plugin protocol §6/§7):
+#   argv    `protocol` for the handshake, else `<op> <phase>`
+#   stdin   the §7 payload; `binding.store` names the store checkout,
+#           `binding.invocation_path` the project repo
+#   stdout  kept empty (the user-facing channel); findings go to stderr
+#   exit    0 = ok, non-zero = abort the op + roll prior plugins back
+
+if [ "${1-}" = protocol ]; then
+  printf '{"protocol":[1],"ops":["create","update","claim","unclaim","close","drop"]}\n'
+  exit 0
+fi
+
+op="${1-op}"
+phase="${2-}"
+
+# Drain stdin whether or not we need it: never block on a terminal, never
+# leave a piped payload unread.
+payload=''
+[ -t 0 ] || payload="$(cat)"
+
+# Only `post` can see what the op wrote. Every other phase abstains.
+[ "$phase" = post ] || exit 0
+
+# git exports GIT_DIR/GIT_INDEX_FILE into children and they OUTRANK cd, so an
+# inherited one would silently re-aim the scan at another repository.
+unset $(git rev-parse --local-env-vars) 2>/dev/null || true
+
+# One payload field per line, jq if present, else python3, else a sed that
+# assumes no escaped quotes in paths (true of every path bl writes).
+field() {
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$payload" | jq -r ".binding.$1 // empty" 2>/dev/null
+  elif command -v python3 >/dev/null 2>&1; then
+    printf '%s' "$payload" | python3 -c \
+      "import sys,json;print(json.load(sys.stdin).get('binding',{}).get('$1',''))" 2>/dev/null
+  else
+    printf '%s' "$payload" | tr -d '\n' |
+      sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p"
+  fi
+}
+
+repo="$(field invocation_path)"
+if [ -z "$repo" ] || [ ! -d "$repo" ]; then
+  echo "bl-leak-gate: could not read binding.invocation_path from the $op payload;" >&2
+  echo "  the task store went UNSCANNED this op. If the bl payload wire changed," >&2
+  echo "  fix ~/userconf/bin/bl-leak-gate — this warning will nag until it is fixed." >&2
+  exit 0
+fi
+
+# The project's own scanner is the opt-in. Not there, or not executable ⇒ the
+# project has no store-publication policy ⇒ pass silently.
+scan="$repo/scripts/leak-scan.sh"
+[ -x "$scan" ] || exit 0
+
+store="$(field store)"
+if [ -z "$store" ] || [ ! -d "$store" ]; then
+  echo "bl-leak-gate: $repo ships scripts/leak-scan.sh but the $op payload named" >&2
+  echo "  no readable store checkout, so the store cannot be scanned and this op" >&2
+  echo "  is refused. If the plugin wire changed, unwire the gate (remove it from" >&2
+  echo "  ~/.config/balls/plugins.toml) and file the breakage." >&2
+  exit 1
+fi
+
+cd "$store" || exit 1
+# Findings and the clean line both go to stderr: stdout is not this plugin's.
+if "$scan" >&2; then
+  exit 0
+fi
+
+echo "bl-leak-gate: the $op is REFUSED and the store commit rolled back — the" >&2
+echo "  ball body above would have published that material to $repo's task ref." >&2
+echo "  Rewrite the text (cite the shape, not the instance: /home/u, not a real" >&2
+echo "  account path) and run the same command again." >&2
+exit 1
