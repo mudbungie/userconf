@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# bl-pushmain — a bl `close.post` plugin: push the code `main` branch to origin
+# after a delivery. bl-tracker replicates the task store (balls/tasks) on every
+# op but never the code branch, so a delivered close historically needed a
+# manual `git push origin main` (ADDENDA 2026-06-10/11 recurring friction).
+# This closes that gap.
+#
+# Best-effort and NON-FATAL by design: it always exits 0, so it can never roll
+# back a close that already delivered locally. A rejected push (e.g. a
+# concurrent delivery advanced origin/main) warns loudly and leaves the branch
+# for a manual sync — exactly today's fallback, but now only in the rare race.
+set -uo pipefail
+
+if [ "${1:-}" = "protocol" ]; then
+  echo '{"protocol":[1],"ops":["close"]}'
+  exit 0
+fi
+
+# The schedule scopes this to close.post; guard defensively regardless.
+[ "${1:-}" = "close" ] && [ "${2:-}" = "post" ] || exit 0
+
+envelope="$(cat)"
+
+# binding.invocation_path is the authoritative project-repo path in the
+# envelope (the plugin's cwd is a store staging dir, not the repo).
+if command -v jq >/dev/null 2>&1; then
+  repo="$(printf '%s' "$envelope" | jq -r '.binding.invocation_path // empty')"
+elif command -v python3 >/dev/null 2>&1; then
+  repo="$(printf '%s' "$envelope" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("binding",{}).get("invocation_path",""))')"
+else
+  echo "bl-pushmain: need jq or python3 to read the envelope; skipping push" >&2
+  exit 0
+fi
+
+if [ -z "$repo" ]; then
+  echo "bl-pushmain: no invocation_path in envelope; skipping push" >&2
+  exit 0
+fi
+
+# No origin means nothing to push — not a failed push. Say nothing at all:
+# a repo that never had a remote would otherwise warn on every single close.
+git -C "$repo" remote get-url origin >/dev/null 2>&1 || exit 0
+
+if out="$(git -C "$repo" push origin main 2>&1)"; then
+  echo "bl-pushmain: pushed main -> origin" >&2
+else
+  echo "bl-pushmain: WARNING could not push main (a concurrent delivery may have advanced origin/main); sync and push manually:" >&2
+  printf '%s\n' "$out" | sed 's/^/  /' >&2
+fi
+exit 0
