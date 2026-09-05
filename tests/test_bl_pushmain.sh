@@ -3,7 +3,9 @@
 # bin/bl-pushmain: the close.post plugin that pushes the code branch after a
 # delivery. What is under test is its noise, not git's: a repo with no origin
 # has nothing to push and must say nothing, while a push that genuinely fails
-# must still be loud enough to notice.
+# must still be loud enough to notice. And the branch is whichever one the repo
+# integrates on - this repo's is master, so a plugin that assumed `main` warned
+# on every close here.
 #
 
 # Run the plugin as balls would: `close post` with the §7 envelope on stdin.
@@ -13,11 +15,13 @@ run_pushmain() { # $1=repo
         | "$REPO_ROOT/bin/bl-pushmain" close post 2>"$TEST_DIR/push.err"
 }
 
-# A repo on branch main with one commit, at $TEST_DIR/repo.
+# A repo with one commit at $TEST_DIR/repo, on the branch named by $1
+# (default main). Leaves the shell inside it.
 _pushmain_repo() {
+    local branch="${1:-main}"
     mkdir -p "$TEST_DIR/repo"
     cd "$TEST_DIR/repo" || return 1
-    git init -q -b main
+    git init -q -b "$branch"
     echo seed > seed.txt
     git add seed.txt
     git -c user.email=t@t.local -c user.name=T commit -qm seed
@@ -96,5 +100,48 @@ test_pushmain_abstains_off_close_post() {
     local rc=0
     printf '{}' | "$REPO_ROOT/bin/bl-pushmain" close pre >/dev/null 2>&1 || rc=$?
     assert_true $rc "there is nothing to push before the delivery lands"
+    teardown
+}
+
+test_pushmain_pushes_the_branch_the_repo_integrates_on() {
+    echo "=== Testing bl-pushmain pushes master where master is HEAD ==="
+    setup
+    git init -q --bare "$TEST_DIR/origin.git"
+    _pushmain_repo master
+    git remote add origin "$TEST_DIR/origin.git"
+
+    local rc=0
+    run_pushmain "$TEST_DIR/repo" >/dev/null || rc=$?
+    local err
+    err=$(cat "$TEST_DIR/push.err")
+
+    assert_true $rc "a clean push of master exits 0"
+    assert_contains "$err" "pushed master -> origin" \
+        "the branch pushed is the one HEAD names, not the constant main"
+    assert_equals "$(git -C "$TEST_DIR/repo" rev-parse master)" \
+        "$(git -C "$TEST_DIR/origin.git" rev-parse master)" \
+        "origin really has master"
+    assert_false "$(git -C "$TEST_DIR/origin.git" rev-parse main >/dev/null 2>&1; echo $?)" \
+        "and no branch called main was invented"
+
+    teardown
+}
+
+test_pushmain_says_nothing_on_a_detached_head() {
+    echo "=== Testing bl-pushmain is silent when HEAD is detached ==="
+    setup
+    git init -q --bare "$TEST_DIR/origin.git"
+    _pushmain_repo main
+    git remote add origin "$TEST_DIR/origin.git"
+    git checkout -q --detach
+
+    local out rc=0
+    out=$(run_pushmain "$TEST_DIR/repo") || rc=$?
+
+    assert_true $rc "a detached HEAD is not a failure"
+    assert_equals "" "$out" "nothing on stdout"
+    assert_equals "" "$(cat "$TEST_DIR/push.err")" \
+        "no branch to push, so nothing to report"
+
     teardown
 }

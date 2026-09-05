@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# bl-pushmain — a bl `close.post` plugin: push the code `main` branch to origin
-# after a delivery. bl-tracker replicates the task store (balls/tasks) on every
-# op but never the code branch, so a delivered close historically needed a
-# manual `git push origin main` (ADDENDA 2026-06-10/11 recurring friction).
+# bl-pushmain — a bl `close.post` plugin: push the code branch the delivery
+# landed on to origin. bl-tracker replicates the task store (balls/tasks) on
+# every op but never the code branch, so a delivered close historically needed a
+# manual `git push origin <branch>` (ADDENDA 2026-06-10/11 recurring friction).
 # This closes that gap.
+#
+# The branch is asked of the repo (`symbolic-ref --short HEAD`), never assumed:
+# a delivery advances the repo's integration branch, which is `master` here and
+# `main` elsewhere, and a constant is simply wrong in one of them.
 #
 # Best-effort and NON-FATAL by design: it always exits 0, so it can never roll
 # back a close that already delivered locally. A rejected push (e.g. a
-# concurrent delivery advanced origin/main) warns loudly and leaves the branch
-# for a manual sync — exactly today's fallback, but now only in the rare race.
+# concurrent delivery advanced the remote branch) warns loudly and leaves the
+# branch for a manual sync — exactly today's fallback, but now only in the rare
+# race.
 set -uo pipefail
 
 if [ "${1:-}" = "protocol" ]; then
@@ -41,10 +46,15 @@ fi
 # a repo that never had a remote would otherwise warn on every single close.
 git -C "$repo" remote get-url origin >/dev/null 2>&1 || exit 0
 
-if out="$(git -C "$repo" push origin main 2>&1)"; then
-  echo "bl-pushmain: pushed main -> origin" >&2
+# A detached HEAD is not an integration branch, so there is no branch to push
+# and nothing to say about it.
+branch="$(git -C "$repo" symbolic-ref --short HEAD 2>/dev/null)" || exit 0
+[ -n "$branch" ] || exit 0
+
+if out="$(git -C "$repo" push origin "$branch" 2>&1)"; then
+  echo "bl-pushmain: pushed $branch -> origin" >&2
 else
-  echo "bl-pushmain: WARNING could not push main (a concurrent delivery may have advanced origin/main); sync and push manually:" >&2
+  echo "bl-pushmain: WARNING could not push $branch (a concurrent delivery may have advanced origin/$branch); sync and push manually:" >&2
   printf '%s\n' "$out" | sed 's/^/  /' >&2
 fi
 exit 0
