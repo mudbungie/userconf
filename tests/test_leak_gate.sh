@@ -21,6 +21,7 @@ test_leak_gate_protocol_handshake() {
     out=$("$REPO_ROOT/bin/bl-leak-gate" protocol)
     assert_contains "$out" '"protocol"' "handshake speaks the protocol"
     assert_contains "$out" '"close"' "handshake covers the publishing ops"
+    assert_contains "$out" '"comment"' "handshake covers comment (an update that publishes body text)"
     teardown
 }
 

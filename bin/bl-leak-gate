@@ -32,7 +32,7 @@
 #   exit    0 = ok, non-zero = abort the op + roll prior plugins back
 
 if [ "${1-}" = protocol ]; then
-  printf '{"protocol":[1],"ops":["create","update","claim","unclaim","close","drop"]}\n'
+  printf '{"protocol":[1],"ops":["create","update","comment","claim","unclaim","close","drop"]}\n'
   exit 0
 fi
 
