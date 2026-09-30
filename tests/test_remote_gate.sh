@@ -40,11 +40,19 @@ case \$1 in
                            cp "\$f" "$FAKE_STORE/"; done ;;
 esac
 EOF
-    # The builder: one verdict per speculation ref, shaped by \$FAKE_ROOT/mode.
+    # The builder: one verdict per speculation ref, shaped by \$FAKE_ROOT/mode;
+    # a run/<sha>/<target> ref gets a log and a status = exit code (mode is
+    # the code; `silent` writes neither).
     cat > "$TEST_DIR/template/hooks/post-receive" <<EOF
 #!/bin/bash
 mode=\$(cat "$FAKE_ROOT/mode")
 while read -r _o new ref; do
+  if [[ \$ref == refs/heads/run/* ]]; then
+    target=\${ref##*/}; out="$FAKE_ROOT/out/\$new-\$target"; mkdir -p "\$out"
+    [ "\$mode" = silent ] && continue
+    printf 'make %s: line one\\nline two\\n' "\$target" > "\$out/log"
+    echo "\$mode" > "\$out/status"; continue
+  fi
   [[ \$ref == refs/heads/speculation/* ]] || continue
   out="$FAKE_ROOT/out/\$new"; mkdir -p "\$out"
   [ "\$mode" = silent ] && continue

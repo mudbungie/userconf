@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# bl-gate — THE pre-commit gate of every repo on this machine (ops bl-1f80;
+# ~/ops/remote-builds.md "Phase 2", "Shared hook"). A repo's hook file is two
+# lines, `#!/usr/bin/env bash` + `exec bl-gate "$@"`; anything about the REF
+# rather than the tree (a mainline refusal) stays in that file, ahead of the
+# exec. Editing this script changes every repo's gate at once: there is no
+# other copy.
+#
+# This laptop does not compile. The gate's targets are the repo's `make check`
+# (or `scripts/check`); the noodlezoo builder runs them on the staged tree and
+# signs a bl-speculate verdict; bl-remote-gate brings it home. Three steps:
+#   1. leak-scan here, iff the Makefile has the target — cheap, and the one
+#      thing that must never leave the box unscanned;
+#   2. `bl-speculate check` — a verified verdict for this exact tree under
+#      this toolchain already passed: done;
+#   3. `bl-remote-gate` — its exit is the gate's exit (0 pass, 1 the builder
+#      failed the tree, 75 no verdict: nothing recorded, commit refused).
+# There is no local build path. If the builder is unreachable, the answer is
+# 75, not `cargo test` — see ~/ops/noodlezoo/docs/builder.md.
+#
+# BALLS_TOOLCHAIN is the gate half of every verdict key (balls >= 0.5.13):
+# exported once here, inherited by both tools. A tree that knows its own
+# toolchain says so in an executable scripts/toolchain (Gradle repos print
+# their JDK line); otherwise it is `rustc -V`, and the builder's rustc is the
+# rust-toolchain.toml pin, so the string is byte-identical on both sides.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+# Hook env (GIT_INDEX_FILE et al.) would point the tools at a temporary index.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
+
+for tool in bl-speculate bl-remote-gate; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "gate: $tool not installed (userconf deploy.sh); cannot run the gate." >&2; exit 1; }
+done
+
+if [ -x scripts/toolchain ]; then
+  BALLS_TOOLCHAIN="$(scripts/toolchain)"
+else
+  command -v rustc >/dev/null 2>&1 || { echo "gate: no scripts/toolchain and no rustc; nothing names this tree's toolchain." >&2; exit 1; }
+  BALLS_TOOLCHAIN="$(rustc -V)"
+fi
+export BALLS_TOOLCHAIN
+
+if make -n leak-scan >/dev/null 2>&1; then
+  echo "gate: leak-scan (make leak-scan)..." >&2
+  make leak-scan >&2
+fi
+
+if bl-speculate check; then
+  echo "gate: verdict cache hit — this exact tree already passed this exact gate." >&2
+  exit 0
+fi
+echo "gate: no verdict yet — building on the noodlezoo builder (bl-remote-gate)..." >&2
+exec bl-remote-gate

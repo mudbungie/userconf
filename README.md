@@ -358,6 +358,23 @@ symlink in that repo's hooks directory, which is exactly what
 
 Strip the whole arrangement with `git config --global --unset core.hooksPath`.
 
+## The build gate, and the machine that does not compile
+
+`bin/` is symlinked into `~/.local/bin` by `deploy.sh`. Four of its entries
+are the code-side of ops `remote-builds.md` ("this laptop does not compile
+in a gate"; the builder is `noodlezoo`, runbook `~/ops/noodlezoo/docs/builder.md`):
+
+| Tool | What it is |
+|---|---|
+| `bl-gate` | **The** pre-commit gate of every repo here. A repo's hook is two lines, `#!/usr/bin/env bash` + `exec bl-gate "$@"`; anything about the ref (a mainline refusal) stays in that file, ahead of the exec. bl-gate runs `make leak-scan` locally iff the Makefile has it, exports `BALLS_TOOLCHAIN` (from an executable `scripts/toolchain` if the tree has one, else `rustc -V`), asks `bl-speculate check` for a verified verdict on the staged tree, and otherwise execs `bl-remote-gate`. Editing it changes every repo's gate at once; there is no other copy. |
+| `bl-remote-gate` | Ships the STAGED tree to the builder as `refs/heads/speculation/<sha>`, waits once with a deadline, verifies every returned verdict against `balls/allowed_signers` (linked to `~/.config/balls/`) and only then imports. Exit 0 pass, 1 the builder failed the tree, 75 no verdict. |
+| `bl-remote-run TARGET` | `make TARGET` on the same tree, on the builder, as `refs/heads/run/<sha>/<target>`; the log streams to stdout; exit is the target's exit (124 = deadline). Records nothing. This is how `make test` or `make coverage` leaves the laptop from inside a dev loop. |
+| `cargo-tarpaulin`, `cargo-llvm-cov` | Shims that shadow `~/.cargo/bin` (`~/.local/bin` is first on PATH) and refuse with the remedy above. A coverage run is a full instrumented rebuild nothing else reuses, and no hook can see an agent running it by hand. Delete the shim to get the real tool back. |
+
+`bl-remote-gate` and `bl-remote-run` are one script, `bl-remote`, under two
+names — the `chain` convention. The ref namespace is the request; the builder's
+`post-receive` dispatches on it.
+
 ## Git hooks
 
 Hooks are version controlled in `.githooks/`. They are not active until you run

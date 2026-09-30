@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# cargo-tarpaulin / cargo-llvm-cov — shims that shadow the real binaries in
+# ~/.cargo/bin (~/.local/bin precedes it on PATH). Ops bl-1f80,
+# ~/ops/remote-builds.md "Phase 2", "Shims": this machine does not compile
+# coverage. A coverage run is a full instrumented rebuild that no ordinary
+# build can reuse, and it was the single largest local burn — including when
+# an agent ran `make coverage` by hand, which no git hook can see.
+#
+# Severable: `rm ~/userconf/bin/cargo-tarpaulin` (and the cargo-llvm-cov link)
+# restores the real tool. The builder image is unaffected; its tools live in
+# its own /usr/local/bin.
+tool="${0##*/}"
+cat >&2 <<MSG
+$tool: this machine does not compile coverage; commit — the gate runs on
+noodlezoo, or run \`bl-remote-run coverage\` (or whatever make target your
+Makefile names) to run it there and stream the log here.
+  (shim: ~/userconf/bin/$tool; the real binary is ~/.cargo/bin/$tool)
+MSG
+exit 1

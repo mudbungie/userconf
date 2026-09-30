@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# bl-remote — one script, two names (like githooks-global/chain): ship this
+# repo's STAGED tree to the noodlezoo builder and bring back what it produced.
+# Protocol: ~/ops/remote-builds.md "Builder protocol" + "Phase 2"; runbook:
+# ~/ops/noodlezoo/docs/builder.md. Ops bl-9e5b (gate), bl-1f80 (run).
+#
+#   bl-remote-gate          the tree's gate runs there; its SIGNED bl-speculate
+#                           verdict comes home. Exit 0 = `bl-speculate check`
+#                           hits now; 1 = the builder judged the tree and
+#                           FAILED it; 75 = no verdict (unverifiable, silent,
+#                           fingerprint miss) — nothing recorded, next attempt
+#                           rebuilds. yog/scripts/speculate-gate's contract.
+#   bl-remote-run TARGET    `make TARGET` runs there on the same tree; the log
+#                           streams to stdout as it is written; exit is the
+#                           target's exit (124 = deadline). Nothing recorded.
+#
+# What travels, in both cases: a commit of the INDEX tree (bl-speculate keys
+# verdicts on `git write-tree`; a pre-commit hook must ship what is staged, not
+# HEAD), pushed to one bare repo per PROJECT on the builder. The ref namespace
+# is the request: refs/heads/speculation/<sha> asks for the gate,
+# refs/heads/run/<sha>/<target> for a target. The builder answers under
+# /tank/build/out/<sha>/ (gate: status + *.toml + *.toml.sig) or
+# /tank/build/out/<sha>-<target>/ (run: log + status = exit code).
+#
+# BALLS_TOOLCHAIN is the calling gate's to set (balls >= 0.5.13: the gate half
+# of every verdict key). This script never derives it — policy stays in the
+# repo's gate (bl-gate) — and the gate verb refuses without it: 75.
+set -euo pipefail
+
+verb="${0##*/}"; verb="${verb#bl-remote-}"
+builder=builder
+root=/tank/build
+signers="${XDG_CONFIG_HOME:-$HOME/.config}/balls/allowed_signers"
+
+case "$verb" in
+  gate)
+    if [ -z "${BALLS_TOOLCHAIN:-}" ]; then
+      echo "bl-remote-gate: BALLS_TOOLCHAIN is unset — the gate must export it before calling; exit 75, nothing recorded" >&2
+      exit 75
+    fi ;;
+  run)
+    target="${1:-}"
+    [ -n "$target" ] || { echo "usage: bl-remote-run TARGET" >&2; exit 2; } ;;
+  *) echo "bl-remote: invoke as bl-remote-gate or bl-remote-run" >&2; exit 2 ;;
+esac
+
+cd "$(git rev-parse --show-toplevel)"
+# A hook's GIT_* env would point write-tree at a temporary index; the tree
+# must be the one bl-speculate keys on, which is the plain repository index.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
+
+# One bare repo per PROJECT: a bl worktree's basename is a task id, its
+# common dir's parent is the checkout every worktree shares.
+repo="$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")"
+tree="$(git write-tree)"
+parent=()
+git rev-parse -q --verify HEAD >/dev/null && parent=(-p HEAD)
+sha="$(git commit-tree "$tree" "${parent[@]}" -m "speculation: tree $tree")"
+bare="$root/git/$repo.git"
+case "$verb" in
+  gate) ref="refs/heads/speculation/$sha"; out="$root/out/$sha" ;;
+  run)  ref="refs/heads/run/$sha/$target"; out="$root/out/$sha-$target" ;;
+esac
+
+# THE REF IS OWNED BY THE TRAP FROM HERE ON: it is the only thing this script
+# leaves on the builder, and no exit path may strand it.
+home=""
+cleanup() {
+  ssh "$builder" "git -C '$bare' update-ref -d '$ref'" 2>/dev/null || true
+  [ -n "$home" ] && rm -rf "$home"
+  return 0
+}
+trap cleanup EXIT INT TERM HUP
+home="$(mktemp -d)"
+
+echo "bl-remote-$verb: $repo tree $tree -> $builder:$ref" >&2
+ssh "$builder" "git init -q --bare '$bare'" >&2
+git push -q "$builder:$bare" "$sha:$ref" >&2
+
+# ONE wait with a deadline, never a client-side poll. The hook removed any
+# stale status before the push returned, so whatever appears is this build's.
+wait_for_status() {
+  ssh "$builder" "timeout 3600 bash -c 'until [ -e \"$out/status\" ]; do sleep 2; done'"
+}
+
+if [ "$verb" = run ]; then
+  # Stream the log while waiting: tail -F copes with the file not existing
+  # yet, and dies with the wait. The status is its own tiny fetch after.
+  if ! ssh "$builder" "tail -n +1 -F '$out/log' 2>/dev/null & t=\$!; \
+      timeout 3600 bash -c 'until [ -e \"$out/status\" ]; do sleep 2; done'; rc=\$?; \
+      sleep 1; kill \$t 2>/dev/null; exit \$rc"; then
+    echo "bl-remote-run: no status for $sha/$target within the deadline — exit 124" >&2
+    exit 124
+  fi
+  status="$(ssh "$builder" "cat '$out/status'" 2>/dev/null || echo 124)"
+  echo "bl-remote-run: make $target exited $status on the builder" >&2
+  exit "$status"
+fi
+
+if ! wait_for_status; then
+  echo "bl-remote-gate: no status for $sha within the deadline — exit 75" >&2
+  exit 75
+fi
+ssh "$builder" "cd '$out' && cat status && tar -cf - --ignore-failed-read ./*.toml ./*.sig 2>/dev/null" \
+  >"$home/bundle" || true
+status="$(head -n1 "$home/bundle" 2>/dev/null || true)"
+tail -n +2 "$home/bundle" | tar -xf - -C "$home" 2>/dev/null || true
+echo "bl-remote-gate: builder says '$status' for $sha" >&2
+
+# Every verdict file is verified against allowed_signers (principal
+# `noodlezoo`, namespace `balls-verdict`) BEFORE `bl-speculate import` sees
+# it; a file that does not verify is discarded, never imported, never a FAIL.
+shopt -s nullglob
+verified=()
+for f in "$home"/*.toml; do
+  if [ -s "$f.sig" ] && ssh-keygen -Y verify -f "$signers" -I noodlezoo -n balls-verdict -s "$f.sig" <"$f" >/dev/null 2>&1; then
+    verified+=("$f")
+  else
+    echo "bl-remote-gate: DISCARDING unverifiable $(basename "$f")" >&2
+    rm -f "$f" "$f.sig"
+  fi
+done
+[ ${#verified[@]} -gt 0 ] && bl-speculate import "${verified[@]}" >&2
+
+# NOT exec: exec replaces the shell and the EXIT trap would never sweep the ref.
+if bl-speculate check; then
+  exit 0
+fi
+if [ "$status" = fail ] && grep -qsx 'pass = false' "$home/$tree"-*.toml; then
+  echo "bl-remote-gate: the builder FAILED tree $tree — see: ssh $builder cat $out/log" >&2
+  exit 1
+fi
+echo "bl-remote-gate: no verified verdict for tree $tree under this box's gate key — exit 75" >&2
+exit 75
