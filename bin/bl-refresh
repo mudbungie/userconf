@@ -1,0 +1,106 @@
+#!/bin/sh
+# bl-refresh — a bl `close.post` plugin: after a delivered close, carry the
+# invocation repo's checkout forward to the branch tip the delivery moved.
+#
+# WHY. bl-delivery lands a close by plumbing (`commit-tree` + `update-ref`), so
+# the ref moves but the checkout sitting on that branch does not: its index and
+# files stay at the old commit, and `git status` reads the delivery as a staged
+# revert. balls heals this itself only for a PRISTINE checkout (bl-22dd:
+# index == HEAD^ and no worktree edits); one unrelated local edit anywhere and
+# the checkout is left stale (userconf bl-4543, 2026-09-25). This plugin covers
+# that gap with git's own two-way checkout merge, `git read-tree -m -u <old>
+# <new>` — exactly what `git checkout` runs: it updates the files the close
+# changed, carries every other local edit forward, and REFUSES (touching
+# nothing) when a file the close changed is also modified locally.
+#
+# WHICH <old>. Not the payload: its `commit`/`previous_commit` are task-store
+# seals, not the code branch. Not blindly `<branch>@{1}`: after a close that
+# delivered nothing it names an older move, and after two unrefreshed closes it
+# is one step short. The checkout's true starting point is the tree its index
+# holds, so <old> is the newest reflog entry of the branch whose tree IS the
+# index's tree (`git write-tree`). Index already at the tip's tree ⇒ current,
+# nothing to do. Index matching no recorded commit ⇒ staged changes sit on it,
+# no <old> can be named safely (using the index tree itself would revert the
+# staged edits), so it warns and leaves the checkout alone.
+#
+# SCOPE. Only the invocation repo, only when it is non-bare, HEAD is a branch,
+# and that branch is what the close delivered to — the integration branch, which
+# bl-delivery defines as the repo's HEAD. A nested close (`command.target` set)
+# delivers into `work/<target>` instead, so it is not this checkout's business.
+#
+# POSTURE. Never fails a close (always exit 0), never resets, never stashes.
+# stdout stays empty (balls' user-facing channel); everything goes to stderr.
+#
+# Contract (balls plugin protocol §6/§7):
+#   argv    `protocol` for the handshake, else `<op> <phase>`
+#   stdin   the §7 payload; `binding.invocation_path` names the project repo
+
+if [ "${1-}" = protocol ]; then
+  printf '{"protocol":[1],"ops":["close"]}\n'
+  exit 0
+fi
+
+payload=''
+[ -t 0 ] || payload="$(cat)"
+
+[ "${1-}" = close ] && [ "${2-}" = post ] || exit 0
+
+# git exports GIT_DIR/GIT_INDEX_FILE into children and they OUTRANK -C.
+unset $(git rev-parse --local-env-vars) 2>/dev/null || true
+
+# One payload string by dotted path, via jq or python3.
+field() {
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$payload" | jq -r ".$1 // empty" 2>/dev/null
+  elif command -v python3 >/dev/null 2>&1; then
+    printf '%s' "$payload" | python3 -c '
+import sys, json
+v = json.load(sys.stdin)
+for k in sys.argv[1].split("."):
+    v = v.get(k) if isinstance(v, dict) else None
+print(v if isinstance(v, str) else "")' "$1" 2>/dev/null
+  fi
+}
+
+repo="$(field binding.invocation_path)"
+if [ -z "$repo" ] || [ ! -d "$repo" ]; then
+  echo "bl-refresh: no readable binding.invocation_path in the close payload;" >&2
+  echo "  checkout not refreshed. If the bl payload wire changed, fix" >&2
+  echo "  ~/userconf/bin/bl-refresh." >&2
+  exit 0
+fi
+
+# A nested delivery moved work/<target>, not the branch this checkout is on.
+[ -z "$(field command.target)" ] || exit 0
+
+g() { git -C "$repo" "$@"; }
+
+[ "$(g rev-parse --is-bare-repository 2>/dev/null)" = false ] || exit 0
+branch="$(g symbolic-ref --short -q HEAD)" || exit 0
+tip="$(g rev-parse -q --verify "refs/heads/$branch^{commit}")" || exit 0
+
+# Fresh stat info, so an untouched-but-restatted file is not "not uptodate".
+g update-index -q --refresh >/dev/null 2>&1
+index_tree="$(g write-tree 2>/dev/null)" || exit 0   # unmerged: not ours
+[ "$index_tree" = "$(g rev-parse "$tip^{tree}")" ] && exit 0
+
+old="$(g log -g --format='%H %T' "refs/heads/$branch" 2>/dev/null |
+  awk -v t="$index_tree" '$2 == t { print $1; exit }')"
+
+if [ -z "$old" ]; then
+  echo "bl-refresh: $repo is not at $branch's tip, but its index matches no" >&2
+  echo "  recorded $branch commit (staged changes?), so it was left alone." >&2
+  echo "  Check \`git -C $repo status\` and bring it forward by hand." >&2
+  exit 0
+fi
+
+if out="$(g read-tree -m -u "$old" "$tip" 2>&1)"; then
+  echo "bl-refresh: carried $repo forward to $branch ($(g rev-parse --short "$old")..$(g rev-parse --short "$tip"))" >&2
+else
+  echo "bl-refresh: WARNING $repo is stale on $branch and was NOT refreshed:" >&2
+  printf '%s\n' "$out" | sed 's/^/  /' >&2
+  echo "  A file the close changed is also modified locally. Nothing was touched." >&2
+  echo "  Commit or move those edits aside, then run:" >&2
+  echo "    git -C $repo read-tree -m -u $old $tip" >&2
+fi
+exit 0
