@@ -133,6 +133,11 @@ function install_local_bins {
     done
 }
 
+# balls/allowed_signers: who may sign verdicts bl-remote-gate imports (one level down: own link).
+function install_balls_signers {
+    mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/balls" && link_dotfile "$(pwd)/balls/allowed_signers" "${XDG_CONFIG_HOME:-$HOME/.config}/balls/allowed_signers"
+}
+
 function ensure_requirements {
     echo "Ensuring required programs"
     if ! command -v git >/dev/null ; then
@@ -277,6 +282,7 @@ function configure_user {
     make_notes_dir
     make_local_bin_dir
     install_local_bins
+    install_balls_signers
     install_packages
     install_mise
     install_shell_hooks

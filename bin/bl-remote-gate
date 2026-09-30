@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# bl-remote-gate — run this tree's gate on the noodlezoo builder and bring the
+# signed verdict home (ops bl-9e5b; protocol: ~/ops/remote-builds.md "Builder
+# protocol", runbook: ~/ops/noodlezoo/docs/builder.md).
+#
+# Usable two ways, both from a repo's toplevel:
+#   scripts/pre-commit:  bl-speculate check || bl-remote-gate
+#   merge queue:         bl-speculate run --gate bl-remote-gate
+#
+# What travels: a commit of the INDEX tree (bl-speculate keys verdicts on
+# `git write-tree`, so a pre-commit hook must ship what is staged, not HEAD),
+# pushed to the builder's bare repo as refs/heads/speculation/<sha>. The
+# builder runs the tree's own scripts/pre-commit and leaves
+# /tank/build/out/<sha>/{status,*.toml,*.toml.sig}. Every verdict file is
+# verified against ~/.config/balls/allowed_signers (principal `noodlezoo`,
+# namespace `balls-verdict`) BEFORE `bl-speculate import` sees it; a file that
+# does not verify is discarded, never imported, never a FAIL.
+#
+# Exit — the three-word contract of yog/scripts/speculate-gate:
+#   0   `bl-speculate check` hits now: a verified PASS for this tree under
+#       this box's gate key came home.
+#   1   the builder judged this tree and FAILED it (verified).
+#   75  everything else: no verdict, unverifiable, timeout, fingerprint miss.
+#       Nothing is recorded; the next attempt rebuilds.
+#
+# The builder is the ssh alias `builder` (User builder, the tailnet address).
+#
+# BALLS_TOOLCHAIN is the calling gate's to set (balls >= 0.5.13: the gate half
+# of every verdict key, `export BALLS_TOOLCHAIN="$(rustc -V)"` in
+# scripts/pre-commit). This script never derives it — policy stays in the
+# repo's gate — and without it there is no key to check under, so: 75.
+set -euo pipefail
+
+if [ -z "${BALLS_TOOLCHAIN:-}" ]; then
+  echo "bl-remote-gate: BALLS_TOOLCHAIN is unset — the gate must export it before calling; exit 75, nothing recorded" >&2
+  exit 75
+fi
+
+builder=builder
+root=/tank/build
+signers="${XDG_CONFIG_HOME:-$HOME/.config}/balls/allowed_signers"
+
+cd "$(git rev-parse --show-toplevel)"
+# A hook's GIT_* env would point write-tree at a temporary index; the tree
+# must be the one bl-speculate keys on, which is the plain repository index.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
+
+repo="$(basename "$PWD")"
+tree="$(git write-tree)"
+parent=()
+git rev-parse -q --verify HEAD >/dev/null && parent=(-p HEAD)
+sha="$(git commit-tree "$tree" "${parent[@]}" -m "speculation: tree $tree")"
+ref="refs/heads/speculation/$sha"
+bare="$root/git/$repo.git"
+out="$root/out/$sha"
+
+home=""
+cleanup() {
+  ssh "$builder" "git -C '$bare' update-ref -d '$ref'" 2>/dev/null || true
+  [ -n "$home" ] && rm -rf "$home"
+  return 0
+}
+trap cleanup EXIT INT TERM HUP
+home="$(mktemp -d)"
+
+echo "bl-remote-gate: $repo tree $tree -> $builder:$ref" >&2
+ssh "$builder" "git init -q --bare '$bare'" >&2
+git push -q "$builder:$bare" "$sha:$ref" >&2
+
+# ONE wait with a deadline. The hook removed any stale status before the push
+# returned, so whatever appears here is this build's.
+if ! ssh "$builder" "timeout 3600 bash -c 'until [ -e \"$out/status\" ]; do sleep 2; done'"; then
+  echo "bl-remote-gate: no status for $sha within the deadline — exit 75" >&2
+  exit 75
+fi
+ssh "$builder" "cd '$out' && cat status && tar -cf - --ignore-failed-read ./*.toml ./*.sig 2>/dev/null" \
+  >"$home/bundle" || true
+status="$(head -n1 "$home/bundle" 2>/dev/null || true)"
+tail -n +2 "$home/bundle" | tar -xf - -C "$home" 2>/dev/null || true
+echo "bl-remote-gate: builder says '$status' for $sha" >&2
+
+shopt -s nullglob
+verified=()
+for f in "$home"/*.toml; do
+  if [ -s "$f.sig" ] && ssh-keygen -Y verify -f "$signers" -I noodlezoo -n balls-verdict -s "$f.sig" <"$f" >/dev/null 2>&1; then
+    verified+=("$f")
+  else
+    echo "bl-remote-gate: DISCARDING unverifiable $(basename "$f")" >&2
+    rm -f "$f" "$f.sig"
+  fi
+done
+[ ${#verified[@]} -gt 0 ] && bl-speculate import "${verified[@]}" >&2
+
+# NOT exec: exec replaces the shell and the EXIT trap would never sweep the ref.
+if bl-speculate check; then
+  exit 0
+fi
+if [ "$status" = fail ] && grep -qsx 'pass = false' "$home/$tree"-*.toml; then
+  echo "bl-remote-gate: the builder FAILED tree $tree — see: ssh $builder cat $out/log" >&2
+  exit 1
+fi
+echo "bl-remote-gate: no verified verdict for tree $tree under this box's gate key — exit 75" >&2
+exit 75
