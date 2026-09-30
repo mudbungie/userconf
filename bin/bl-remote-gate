@@ -46,7 +46,9 @@ cd "$(git rev-parse --show-toplevel)"
 # shellcheck disable=SC2046
 unset $(git rev-parse --local-env-vars)
 
-repo="$(basename "$PWD")"
+# One bare repo per PROJECT: a bl worktree's basename is a task id, its
+# common dir's parent is the checkout every worktree shares.
+repo="$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")"
 tree="$(git write-tree)"
 parent=()
 git rev-parse -q --verify HEAD >/dev/null && parent=(-p HEAD)
