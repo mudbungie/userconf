@@ -42,7 +42,8 @@ esac
 EOF
     # The builder: one verdict per speculation ref, shaped by \$FAKE_ROOT/mode;
     # a run/<sha>/<target> ref gets a log and a status = exit code (mode is
-    # the code; `silent` writes neither).
+    # the code; `silent` writes neither) and, when \$FAKE_ROOT/dist-src
+    # exists, a copy of it as the run's dist/.
     cat > "$TEST_DIR/template/hooks/post-receive" <<EOF
 #!/bin/bash
 mode=\$(cat "$FAKE_ROOT/mode")
@@ -51,6 +52,7 @@ while read -r _o new ref; do
     target=\${ref##*/}; out="$FAKE_ROOT/out/\$new-\$target"; mkdir -p "\$out"
     [ "\$mode" = silent ] && continue
     printf 'make %s: line one\\nline two\\n' "\$target" > "\$out/log"
+    [ -d "$FAKE_ROOT/dist-src" ] && cp -r "$FAKE_ROOT/dist-src" "\$out/dist"
     echo "\$mode" > "\$out/status"; continue
   fi
   [[ \$ref == refs/heads/speculation/* ]] || continue

@@ -69,6 +69,29 @@ test_remote_run_needs_a_target() {
     teardown
 }
 
+test_remote_run_brings_the_outputs_home() {
+    echo "=== Testing bl-remote-run: what the target left in dist/ lands in .remote/<target>/ ==="
+    setup; _gate_machine
+    mkdir -p "$FAKE_ROOT/dist-src/sub" && echo apk > "$FAKE_ROOT/dist-src/sub/app.apk"
+    _run_remote 0 apk
+    assert_equals 0 "$RC" "exit is still the target's"
+    assert_equals apk "$(cat .remote/apk/sub/app.apk)" "the output is home, tree intact"
+    assert_contains "$(cat "$TEST_DIR/run.err")" "outputs in $PWD/.remote/apk" "names where"
+    assert_true "$(git check-ignore -q .remote/apk/sub/app.apk; echo $?)" ".remote/ ignores itself"
+    teardown
+}
+
+test_remote_run_without_outputs_clears_the_stale_ones() {
+    echo "=== Testing bl-remote-run: a run that writes no dist/ leaves no .remote/<target>/ ==="
+    setup; _gate_machine
+    mkdir -p .remote/apk && echo old > .remote/apk/app.apk
+    _run_remote 1 apk
+    assert_equals 1 "$RC" "exit is the target's"
+    assert_true "$([ ! -e .remote/apk ]; echo $?)" "the previous run's output is gone"
+    assert_true "$(grep -q 'outputs in' "$TEST_DIR/run.err"; [ $? -ne 0 ]; echo $?)" "claims no outputs"
+    teardown
+}
+
 test_remote_names_are_one_script() {
     echo "=== Testing bin/: bl-remote-gate and bl-remote-run are links to bl-remote ==="
     assert_equals bl-remote "$(readlink "$REPO_ROOT/bin/bl-remote-gate")" "gate is a link"

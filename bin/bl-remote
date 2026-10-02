@@ -10,9 +10,12 @@
 #                           FAILED it; 75 = no verdict (unverifiable, silent,
 #                           fingerprint miss) — nothing recorded, next attempt
 #                           rebuilds. yog/scripts/speculate-gate's contract.
-#   bl-remote-run TARGET    `make TARGET` runs there on the same tree; the log
-#                           streams to stdout as it is written; exit is the
-#                           target's exit (124 = deadline). Nothing recorded.
+#   bl-remote-run TARGET    `make TARGET DIST=<out>/dist` runs there on the
+#                           same tree; the log streams to stdout as it is
+#                           written; exit is the target's exit (124 = deadline).
+#                           Whatever the target left in $(DIST) comes home to
+#                           .remote/TARGET/ (replaced every run; .remote/
+#                           ignores itself). Nothing recorded.
 #
 # What travels, in both cases: a commit of the INDEX tree (bl-speculate keys
 # verdicts on `git write-tree`; a pre-commit hook must ship what is staged, not
@@ -20,7 +23,7 @@
 # is the request: refs/heads/speculation/<sha> asks for the gate,
 # refs/heads/run/<sha>/<target> for a target. The builder answers under
 # /tank/build/out/<sha>/ (gate: status + *.toml + *.toml.sig) or
-# /tank/build/out/<sha>-<target>/ (run: log + status = exit code).
+# /tank/build/out/<sha>-<target>/ (run: log + status = exit code + dist/).
 #
 # BALLS_TOOLCHAIN is the calling gate's to set (balls >= 0.5.13: the gate half
 # of every verdict key). This script never derives it — policy stays in the
@@ -93,7 +96,19 @@ if [ "$verb" = run ]; then
     echo "bl-remote-run: no status for $sha/$target within the deadline — exit 124" >&2
     exit 124
   fi
-  status="$(ssh "$builder" "cat '$out/status'" 2>/dev/null || echo 124)"
+  # Status and outputs in one fetch, as the gate does: line 1 is the status,
+  # the rest a tar of dist/ (empty when the target wrote none). The previous
+  # run's outputs go regardless: a stale artifact must not pass for this tree's.
+  ssh "$builder" "cat '$out/status' && { cd '$out/dist' 2>/dev/null && tar -cf - . || true; }" \
+    >"$home/bundle" 2>/dev/null || true
+  status="$(head -n1 "$home/bundle")"; status="${status:-124}"
+  dest=".remote/$target"
+  rm -rf "$dest"
+  if [ -n "$(tail -n +2 "$home/bundle" | head -c1)" ]; then
+    mkdir -p "$dest" && echo '*' >.remote/.gitignore
+    tail -n +2 "$home/bundle" | tar -xf - -C "$dest"
+    echo "bl-remote-run: outputs in $PWD/$dest" >&2
+  fi
   echo "bl-remote-run: make $target exited $status on the builder" >&2
   exit "$status"
 fi
