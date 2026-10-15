@@ -144,6 +144,22 @@ if bl-speculate check; then
 fi
 if [ "$status" = fail ] && grep -qsx 'pass = false' "$home/$tree"-*.toml; then
   echo "bl-remote-gate: the builder FAILED tree $tree — see: ssh $builder cat $out/log" >&2
+  # Name the make step that failed, out of the log, before anyone opens it:
+  # the target chain innermost first (`deny < lint`) and the line before the
+  # first `make: ***`, which is the failing tool's own summary. A refusal
+  # that said only FAILED read an unrelated failure — a fresh advisory in
+  # cargo deny — as the commit's own (ops bl-fb2c, userconf bl-b1ee).
+  ssh "$builder" cat "$out/log" 2>/dev/null | awk '
+    /^make(\[[0-9]+\])?: \*\*\* \[Makefile:[0-9]+: / {
+      t = $0; sub(/^.*\[Makefile:[0-9]+: /, "", t); sub(/\].*$/, "", t)
+      chain = (chain == "" ? t : chain " < " t)
+      if (!seen) { seen = 1; said = prev }
+    }
+    { prev = $0 }
+    END {
+      if (chain != "") print "bl-remote-gate: failed at make " chain
+      if (said != "") print "bl-remote-gate:   " said
+    }' >&2 || true
   exit 1
 fi
 echo "bl-remote-gate: no verified verdict for tree $tree under this box's gate key — exit 75" >&2
