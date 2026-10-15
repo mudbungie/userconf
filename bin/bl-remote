@@ -162,5 +162,16 @@ if [ "$status" = fail ] && grep -qsx 'pass = false' "$home/$tree"-*.toml; then
     }' >&2 || true
   exit 1
 fi
+# A pass whose verdict names ANOTHER tree is not a signing problem: the gate
+# rewrote a tracked file on the builder (a lockfile whose own package version
+# lagged the manifest, say), so the tree it judged is not the one sent. The
+# verdict file is named by the tree it is for, which is how it is told apart
+# (userconf bl-c5fe).
+other=$(ls "$home"/*.toml 2>/dev/null | head -n1)
+if [ "$status" = pass ] && [ -n "$other" ] && ! ls "$home/$tree"-*.toml >/dev/null 2>&1; then
+  judged=${other##*/}; judged=${judged%%-*}
+  echo "bl-remote-gate: the builder PASSED tree $judged, not the $tree it was sent: the gate rewrote a tracked file on the builder (a lockfile?) — make the tree one the gate leaves as it finds it; exit 75" >&2
+  exit 75
+fi
 echo "bl-remote-gate: no verified verdict for tree $tree under this box's gate key — exit 75" >&2
 exit 75
